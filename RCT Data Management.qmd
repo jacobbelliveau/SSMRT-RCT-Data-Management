@@ -1,0 +1,74 @@
+---
+title: "RCT Data Management"
+date: '`r Sys.Date()`'
+toc: TRUE
+embed-resources: true
+---
+
+## Introduction
+
+Data Management code for the **S**creening, **S**elf-**M**anagement, and **R**eferral to **T**reatment (SSMRT) project.
+
+This code accomplishes a few things:
+
+-   Fetches data files (either locally or directly from REDCap)
+
+-   Verifies participant IP addresses, compared against self-reported location
+
+-   Various data quality checks
+
+    -   Long-string analysis (also known as straight-lining)
+
+    -   Speeding
+
+    -   Inconsistency/attention checks
+
+-   Publishes recruitment statistics
+
+More detail for each of these steps can be found in their corresponding sections.
+
+Contact the project administrators at [aloverock\@ualberta.ca](mailto:aloverock@ualberta.ca) and/or [jacob.belliveau\@dal.ca](mailto:jacob.belliveau@dal.ca) for the files and keys needed to run.
+
+```{r data init}
+
+library(REDCapR)
+
+# if the "keys.R" file does not exist, choose local filenames
+if (!file.exists("keys.R")) {
+  
+  #baseline filename
+  baseline_filename <- file.choose(new = TRUE)
+  
+  # intervention filenames
+  i1_filename <- file.choose(new = TRUE)
+  i2_filename <- file.choose(new = TRUE)
+  
+  # control filenames
+  c1_filename <- file.choose(new = TRUE)
+  c2_filename <- file.choose(new = TRUE)
+} else {
+  
+  # running the file containing keys
+  source("keys.R")
+  
+  # fetching baseline datasets
+  baseline_df <- redcap_read_oneshot(DAL_URI, BASELINE_API_KEY)$data
+  
+  # fetching intervention datasets
+  int1_df <- redcap_read_oneshot(DAL_URI, I1_API_KEY)$data
+  int2_df <- redcap_read_oneshot(DAL_URI, I2_API_KEY)$data
+  
+  # fetching control datasets
+  ctl1_df <- redcap_read_oneshot(DAL_URI, C1_API_KEY)$data
+  ctl2_df <- redcap_read_oneshot(DAL_URI, C2_API_KEY)$data
+  
+  # clearing unneeded keys from the environment
+  rm(BASELINE_API_KEY)
+  rm(I1_API_KEY)
+  rm(I2_API_KEY)
+  rm(C1_API_KEY)
+  rm(C2_API_KEY)
+  rm(DAL_URI)
+}
+
+```

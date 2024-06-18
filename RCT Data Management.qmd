@@ -69,6 +69,7 @@ if (!file.exists("keys.R")) {
   rm(C1_API_KEY)
   rm(C2_API_KEY)
   rm(DAL_URI)
+  
 }
 
 ```

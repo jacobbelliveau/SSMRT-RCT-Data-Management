@@ -63,13 +63,54 @@ if (!file.exists("keys.R")) {
   ctl2_df <- redcap_read_oneshot(DAL_URI, C2_API_KEY)$data
   
   # clearing unneeded keys from the environment
-  rm(BASELINE_API_KEY)
-  rm(I1_API_KEY)
-  rm(I2_API_KEY)
-  rm(C1_API_KEY)
-  rm(C2_API_KEY)
-  rm(DAL_URI)
+  rm(BASELINE_API_KEY, I1_API_KEY, I2_API_KEY, C1_API_KEY, C2_API_KEY, DAL_URI)
   
 }
+
+```
+
+```{r data linkage}
+
+library(tidyr)
+library(dplyr)
+
+### first combining into wide format
+
+# first correcting the final variable of the dataset (binary variable indicating if they finished the survey; different name for each survey)
+
+ctl1_df <- rename(ctl1_df, 
+       followup_complete = rct_follow_up_1_control_group_complete)
+ctl2_df <- rename(ctl2_df, 
+       followup_complete = rct_follow_up_2_control_group_complete)
+
+int1_df <- rename(int1_df, 
+       followup_complete = rct_follow_up_1_intervention_group_complete)
+int2_df <- rename(int2_df, 
+       followup_complete = rct_follow_up_2_intervention_group_complete)
+
+
+# TODO: figure out how to deal with participants who complete follow up 2 but not 1
+      # maybe checking that access codes in part 2 are also in part 1; if not, add a blank row to part 1 with just the access code?
+
+# combining control follow-ups into one dataset
+control <- full_join(ctl1_df, ctl2_df, by = "access_code", suffix = c("_F1", "_F2"), na_matches = "never")
+
+# combining intervention follow-ups into one dataset
+intervention <- full_join(int1_df, int2_df, by = "access_code", suffix = c("_F1", "_F2"), na_matches = "never")
+
+# combining the intervention and control datasets
+
+followup <- rbind(control, intervention)
+
+
+# combining the follow-up surveys to baseline
+# NOTE: here, participants without access codes in the follow-up are discarded
+
+df <- left_join(baseline_df, followup, by = "access_code", na_matches = "never", multiple = "last")
+
+# removing temporary variables ; df will be used going forward
+
+rm(control, intervention, followup, int1_df, int2_df, ctl1_df, ctl2_df, baseline_df)
+
 
 ```

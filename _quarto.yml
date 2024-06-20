@@ -1,5 +1,7 @@
 project:
   title: "RCT Data Management"
+  post-render: 
+    - postExe.R
 
 editor: visual
 

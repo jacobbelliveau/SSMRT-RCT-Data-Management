@@ -3,6 +3,7 @@ title: "RCT Data Management"
 date: '`r Sys.Date()`'
 toc: TRUE
 embed-resources: true
+output-location: column-fragment
 ---
 
 # Introduction
@@ -249,11 +250,11 @@ All output files created by any part of code above are saved here.
 
 ```{r output}
 
-# Checks for the existence of a folder in the project directory named ".output" - if it does not exist, creates it.
-if (!dir.exists(".output")) {dir.create(".output")}
+# Checks for the existence of a folder in the project directory named "output" - if it does not exist, creates it.
+if (!dir.exists("output")) {dir.create("output")}
 
 # Creates the folder name for today's output
-todays_folder_name <- paste(".output", Sys.Date(), "", sep = "/")
+todays_folder_name <- paste("output", Sys.Date(), "", sep = "/")
 
 # if the above folder doesn't exist, creates it
 if (!dir.exists(todays_folder_name)) {dir.create(todays_folder_name)}

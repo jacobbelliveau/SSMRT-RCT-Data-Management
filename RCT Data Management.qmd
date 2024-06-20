@@ -118,6 +118,9 @@ df <- left_join(baseline_df, followup, by = "access_code", na_matches = "never",
 
 # removing temporary variables ; df will be used going forward
 rm(control, intervention, followup, int1_df, int2_df, ctl1_df, ctl2_df, baseline_df)
+
+# variable for writing to file later
+RAW_DATA_TO_SAVE <- df
 ```
 
 # Participant validation
@@ -255,7 +258,9 @@ todays_folder_name <- paste(".output", Sys.Date(), "", sep = "/")
 # if the above folder doesn't exist, creates it
 if (!dir.exists(todays_folder_name)) {dir.create(todays_folder_name)}
 
+# writing raw data to file
 
+write.csv(RAW_DATA_TO_SAVE, paste(todays_folder_name, "SSMRT rawData.csv", sep = ""), row.names = FALSE)
 
 
 ```

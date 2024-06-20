@@ -190,7 +190,7 @@ Some attention checks
 
 ```{r select c}
 
-
+df$attencheck
 
 ```
 
@@ -206,7 +206,7 @@ Long-string analysis (also known as straight-lining) is checked using a custom f
 
 ## Duplicate access codes
 
-Duplicate access codes in the follow-up surveys are handled in [Data Linkage]. Duplicate access codes at the baseline are handled below. This is not something which should happen often and is indicative of participants copying the initial survey link once they reach the screening questions. These participants are considered to be gaming the system, and are flagged for removal.
+Duplicate access codes in the follow-up surveys are handled in [Data Linkage](#sec-data-linkage). Duplicate access codes at the baseline are handled below. This is not something which should happen often and is indicative of participants copying the initial survey link once they reach the screening questions. These participants are considered to be gaming the system, and are flagged for removal.
 
 ```{r duplicate acs}
 

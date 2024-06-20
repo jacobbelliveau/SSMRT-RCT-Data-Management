@@ -3,5 +3,5 @@
 .RData
 .Ruserdata
 keys.R
-RCT Data Management.html
-.output
+output
+/.quarto/

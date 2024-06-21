@@ -85,6 +85,9 @@ It is possible for access codes to be duplicated in any of the given 4 follow-up
 library(tidyr)
 library(dplyr)
 
+### Functions used in this section:
+`%notin%` <- Negate(`%in%`) # opposite of the %in% operator
+
 ### first combining into wide format
 
 # first correcting the final variable of the dataset (binary variable indicating if they finished the survey; different name for each survey)
@@ -103,6 +106,44 @@ int2_df <- rename(int2_df,
 # TODO: figure out how to deal with participants who complete follow up 2 but not 1
       # maybe checking that access codes in part 2 are also in part 1; if not, add a blank row to part 1 with just the access code?
 
+### The section below handles participants who complete the follow-up 2 survey, but not follow-up 1. Without this section, these participants would be lost at the full-join operation below. 
+
+## Control group
+# getting a list of unique access codes in follow up 2 of the control group
+ctl_pt2_acs <- unique(ctl2_df$access_code[!is.na(ctl2_df$access_code)])
+
+# checking if all access codes in F2 are in F1. If they are not...
+if (!all(ctl_pt2_acs %in% ctl1_df$access_code)) {
+  # for each access code missing from F1...
+  for (AC in ctl_pt2_acs[ctl_pt2_acs %notin% ctl1_df$access_code]) {
+    # add a blank/NA row to F1
+    ctl1_df[nrow(ctl1_df)+1,] <- NA
+    # add in the missing access code to the empty row
+    ctl1_df[nrow(ctl1_df),4] <- AC
+    # removes the access code from the environment
+    rm(AC)
+  }
+
+}
+
+## Intervention group
+# getting a list of unique access codes in follow up 2 of the control group
+int_pt2_acs <- unique(int2_df$access_code[!is.na(int2_df$access_code)])
+
+# checking if all access codes in F2 are in F1. If they are not...
+if (!all(int_pt2_acs %in% int1_df$access_code)) {
+  # for each access code missing from F1...
+  for (AC in int_pt2_acs[int_pt2_acs %notin% int1_df$access_code]) {
+    # add a blank/NA row to F1
+    int1_df[nrow(int1_df)+1,] <- NA
+    # add in the missing access code to the empty row
+    int1_df[nrow(int1_df),4] <- AC
+    # removes the access code from the environment
+    rm(AC)
+  }
+
+}
+
 # combining control follow-ups into one dataset
 control <- full_join(ctl1_df, ctl2_df, by = "access_code", suffix = c("_F1", "_F2"), na_matches = "never")
 
@@ -118,7 +159,7 @@ followup <- rbind(control, intervention)
 df <- left_join(baseline_df, followup, by = "access_code", na_matches = "never", multiple = "last")
 
 # removing temporary variables ; df will be used going forward
-rm(control, intervention, followup, int1_df, int2_df, ctl1_df, ctl2_df, baseline_df)
+rm(control, intervention, followup, int1_df, int2_df, ctl1_df, ctl2_df, baseline_df, ctl_pt2_acs, int_pt2_acs)
 
 # variable for writing to file later
 RAW_DATA_TO_SAVE <- df

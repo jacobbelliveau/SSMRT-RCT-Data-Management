@@ -82,6 +82,8 @@ Note that matching at each applicable step is done using participant access code
 
 It is possible for access codes to be duplicated in any of the given 4 follow-up datasets. This is possible as participants are emailed the link to the survey; if they click that link multiple times, they will have multiple entries in the survey with the same access codes. For simplicity, we consider only the "latest" entry into the survey as valid for duplicate participants; other attempts are discarded.
 
+In the event that a participant completes the second follow-up, but does not begin/complete the first follow-up, a blank row is added to follow-up 1 with their access code.
+
 ```{r data linkage}
 
 library(tidyr)
@@ -103,10 +105,6 @@ int1_df <- rename(int1_df,
        followup_complete = rct_follow_up_1_intervention_group_complete)
 int2_df <- rename(int2_df, 
        followup_complete = rct_follow_up_2_intervention_group_complete)
-
-
-# TODO: figure out how to deal with participants who complete follow up 2 but not 1
-      # maybe checking that access codes in part 2 are also in part 1; if not, add a blank row to part 1 with just the access code?
 
 ### The section below handles participants who complete the follow-up 2 survey, but not follow-up 1. Without this section, these participants would be lost at the full-join operation below. 
 
@@ -181,6 +179,12 @@ These participants are flagged for manual inspection by the research team. Once 
 
 -   Failing the screening questions on the initial attempt, and re-trying the survey with different responses to the screening questions
 
+```{r duplicate}
+
+
+
+```
+
 ## Participants with invalid R/S pairs
 
 These participants are considered to be gaming the system without exception. This includes those with blank or undefined R/S values. These participants are unilaterally excluded from the final data set.
@@ -188,8 +192,37 @@ These participants are considered to be gaming the system without exception. Thi
 ```{r validation}
 
 library(openxlsx)
+library(stringr)
 
+### Functions used
+# %notin% described in section "data linkage"
+
+
+### Validating codes
+# Reads the XLSX file of R/S code pairs used in the study. This list does not change and contains 10,000 code pairs.
 validpairs <- read.xlsx("SSMRT RS Values.xlsx", sheet = 1)
+
+# concatenates the S and R values into one variable in both the R/S code pairs dataset and the REDCap dataset
+validpairs$codes <- str_c(validpairs$S.Codes, validpairs$R.Codes)
+df$codes <- str_c(df$schlesingers, df$schlesingerr)
+
+df$invalid_code <- 0 #creates a variable named "invalid pairs" with values 0
+df$invalid_code[df$codes %notin% validpairs$codes # flags codes that are not in the validpairs dataset
+                 & !is.na(df$codes) # and ignores NA values
+                 ] <- 1 # flagged with value "1"
+
+### Blank codes
+df$blank_code <- 0 # creates a variable for flagging those with empty codes
+# flags those with missing R or S values (or both) by checking that the "codes" variable is 13 characters long, or is equal to "undefinedundefined"
+df$blank_code[nchar(df$codes) != 13 | 
+                is.na(df$codes)     | 
+                df$codes == "undefinedundefined"] <- 1 
+
+### Removing the $codes variable as it's no longer needed
+df$codes <- NULL
+
+### Removing the validpairs dataframe from the environment
+rm(validpairs)
 
 ```
 

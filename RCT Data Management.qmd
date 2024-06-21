@@ -28,7 +28,7 @@ This code accomplishes a few things:
 
 More detail for each of these steps can be found in their corresponding sections.
 
-Contact the project administrators at [aloverock\@ualberta.ca](mailto:aloverock@ualberta.ca) and/or [jacob.belliveau\@dal.ca](mailto:jacob.belliveau@dal.ca) for the files and keys needed to run.
+Contact the project administrators at [aloveroc\@ualberta.ca](mailto:aloveroc@ualberta.ca) and/or [jacob.belliveau\@dal.ca](mailto:jacob.belliveau@dal.ca) for the files and keys needed to run.
 
 ```{r data init}
 

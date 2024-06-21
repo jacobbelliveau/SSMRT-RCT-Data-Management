@@ -1,5 +1,7 @@
 project:
   title: "RCT Data Management"
+  render: 
+    - RCT Data Management.qmd
   post-render: 
     - postExe.R
 

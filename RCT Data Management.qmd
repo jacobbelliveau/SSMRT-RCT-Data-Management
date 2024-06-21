@@ -32,6 +32,8 @@ Contact the project administrators at [aloveroc\@ualberta.ca](mailto:aloveroc@ua
 
 ```{r data init}
 
+library(quarto)
+
 library(REDCapR)
 
 # if the "keys.R" file does not exist, choose local filenames

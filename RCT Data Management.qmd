@@ -238,8 +238,121 @@ If you are running this script once data collection is complete, only cached dat
 
 ```{r ip}
 
+### Functions used
+# Author-created function interfacing with IPInfo
+ipdat <- function(ip_addresses, token) {
+  # Checking for the HTTR package
+  if (!require("httr", character.only = TRUE, quietly = TRUE)) {
+    stop("Required package 'httr' is not installed. Please install before using this function.")
+  }
+  # Checking for the jsonlite package
+  if (!require("jsonlite", character.only = TRUE, quietly = TRUE)) {
+    stop("Required package 'jsonlite' is not installed. Please install before using this function.")
+  }
+  
+  # Validating token
+  validateToken <- httr::GET(paste0("https://ipinfo.io?token=", token))
+  
+  # If token is invalid, stop
+  if (httr::status_code(validateToken) != 200) {
+    httr::status_code(validateToken)
+    stop("Invalid API token, or problems with the service.")
+  }
+  
+  # Generating endpoint for API
+  endpoint <- paste0("https://ipinfo.io/batch?token=", token)
+  
+  # converting IP address list to JSON
+  payload <- jsonlite::toJSON(ip_addresses)
+  
+  # Getting IP data
+  response <- httr::POST(endpoint, body = payload, content_type("application/json"))
+  
+  # Selecting and returning only content; stops if the response failed
+  if (httr::http_type(response) == "application/json") {
+    data <- httr::content(response, as = "text")
+    parsed_data <- jsonlite::fromJSON(data)
+    
+    return(parsed_data)
+  } else {
+    stop("API request failed")
+  }
+}
 
 
+# Function for extracting info from a list of lists
+# Complement to the above function
+# Note that returned columns are coerced into character types
+unlistLists <- function(listNest, data_points) {
+  # Extract the relevant data points from each IP info entry
+  extracted_data <- lapply(listNest, function(entry) {
+    extracted_entry <- lapply(data_points, function(point) {
+      if (point %in% names(entry)) {
+        entry[[point]]  # Extract the data point from the entry if it exists
+      } else {
+        NA_character_  # Fill missing values with NA
+      }
+    })
+    extracted_entry <- as.list(extracted_entry)
+    if (any(!is.na(unlist(extracted_entry)))) extracted_entry else NULL  # Filter out empty entries
+  })
+  
+  # Filter out empty entries
+  non_empty_entries <- extracted_data[lengths(extracted_data) > 0]
+  
+  if (length(non_empty_entries) > 0) {
+    # Combine non-empty entries into a data frame and convert list columns to separate columns
+    df <- as.data.frame(do.call(rbind, non_empty_entries), stringsAsFactors = FALSE)
+    df <- as.data.frame(lapply(df, as.character), stringsAsFactors = FALSE)
+    colnames(df) <- data_points
+    rownames(df) <- seq_len(nrow(df))
+  } else {
+    # Create an empty data frame with appropriate column names
+    df <- data.frame(matrix(ncol = length(data_points)))
+    colnames(df) <- data_points
+  }
+  
+  return(df)
+}
+
+
+### Packages used
+library(openxlsx)
+library(rlang)
+
+
+### IP Info
+
+IPs <- read.xlsx("SSMRT IPs.xlsx", sheet = 1) # reading IP address file
+
+if (file.exists("SSMRT Location Data.xlsx")) { # if the location data file exists
+  LOCATIONS <- read.xlsx("SSMRT Location Data.xlsx", sheet = 1) # read it
+} else { # if not
+  LOCATIONS <- data.frame( # create a blank data frame to fill and save later
+    region = character(), # with region
+    id = character() # and id columns
+  )
+}
+
+# seeing which IPs in the IP file have no corresponding location data in the location file
+unfetched_IPs <- IPs$record_id[!(IPs$record_id %in% LOCATIONS$id)]
+
+if (!is_empty(unfetched_IPs)) { # if there is at least 1 IP address
+  for (id in unfetched_IPs) { # for each id
+    ip <- IPs$ip[IPs$record_id == id] # get the corresponding IP address
+    loc <- unlistLists( # (returned as a list so this unlists)
+      ipdat(ip, IPINFO_API_TOKEN), # fetch location data
+      c("region")) # keeping only the region column
+    loc$id <- id # adding ip address to the region
+    LOCATIONS <- rbind(LOCATIONS, loc) # binding this row of data to the larger location data file
+  }
+  rm(loc,ip,id,IPINFO_API_TOKEN) # removing unneeded data going forward
+}
+
+# combining the location data into the larger dataset, joining by record ID
+df <- left_join(
+  df, LOCATIONS, by = c("record_id" = "id")
+)
 ```
 
 ## Speeding
@@ -280,7 +393,47 @@ Long-string analysis (also known as straight-lining) is checked using a custom f
 
 ```{r longstring}
 
-
+### Functions used
+SL.check <- function(df, vars, new_col, ignore.na = TRUE, ignore.value = c(), ignore.vars = c()) {
+  # Check if vars are in the data frame
+  if (!all(vars %in% colnames(df))) {
+    stop("Error: one or more of the specified variables is not in the data frame.")
+  }
+  
+  # finding the first and last indices of the vars variable
+  firstCol <- which(colnames(df)==vars[1])
+  lastCol <- which(colnames(df)==tail(vars,1))
+  
+  # getting the names of columns between both indices
+  namesofcols <- names(df)[firstCol:lastCol]
+  
+  # if ignore.vars is not empty, remove those names from the namesofcols variable
+  if (length(ignore.vars > 0)) {
+    namesofcols <- namesofcols[!(namesofcols %in% ignore.vars)]
+  }
+  # Check if the variables have the same value
+  if (ignore.na) {
+    # Ignore missing values if ignore.na is TRUE
+    same_value <- !apply(df[,namesofcols], 1, function(x) any(is.na(x)))
+  } else {
+    # Don't ignore missing values if ignore.na is FALSE
+    same_value <- !apply(df[,namesofcols], 1, function(x) any(is.na(x)))
+  }
+  
+  # If ignore.value is not empty, check if all values are NOT in ignore.value
+  if (length(ignore.value) > 0) {
+    same_value <- same_value & !apply(df[,namesofcols], 1, function(x) any(x %in% ignore.value))
+  }
+  
+  # Check if all pairs of variables are equal
+  same_value <- same_value & apply(df[,namesofcols], 1, function(x) all(x == x[1]))
+  
+  # Add the same_value vector as a new column in the data frame
+  df[,new_col] <- same_value
+  
+  # Return the modified data frame
+  df
+}
 
 ```
 
@@ -296,7 +449,7 @@ Duplicate access codes in the follow-up surveys are handled in [Data Linkage](#s
 
 # Report generation
 
-The code below generates a report of relevant recruitment statistics and creates necessary files, as well as posting information to Google Sheets for ease of tracking.
+The code below generates a report of relevant recruitment statistics and creates necessary files, as well as preparing the information to be sent to Google Sheets for tracking during recruitment.
 
 If you are running this code once recruitment is complete, the reports requiring Google Authentication will be skipped.
 
@@ -336,8 +489,10 @@ todays_folder_name <- paste("output", Sys.Date(), "", sep = "/")
 if (!dir.exists(todays_folder_name)) {dir.create(todays_folder_name)}
 
 # writing raw data to file
-
 write.csv(RAW_DATA_TO_SAVE, paste(todays_folder_name, "SSMRT rawData.csv", sep = ""), row.names = FALSE)
 
+# writing location data to file
+write.xlsx(LOCATIONS, "SSMRT Location Data.xlsx")
 
+END_REACHED <- TRUE
 ```

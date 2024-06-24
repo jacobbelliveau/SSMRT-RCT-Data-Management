@@ -346,7 +346,7 @@ if (!is_empty(unfetched_IPs)) { # if there is at least 1 IP address
     loc$id <- id # adding ip address to the region
     LOCATIONS <- rbind(LOCATIONS, loc) # binding this row of data to the larger location data file
   }
-  rm(loc,ip,id,IPINFO_API_TOKEN) # removing unneeded data going forward
+  rm(loc,ip,id,IPINFO_API_TOKEN,IPs) # removing unneeded data going forward
 }
 
 # combining the location data into the larger dataset, joining by record ID
@@ -357,9 +357,28 @@ df <- left_join(
 
 ## Speeding
 
-Participants are checked for speeding at the baseline. (Do we want to check at each step?)
+Participants are checked for speeding at the baseline. (Do we want to check at each step?) That is, participants who complete the survey too quickly are flagged.
 
-Speeding in this case is defined as...
+What is "too quickly"? We have defined it as being more than one third the median time. The citation for this cutoff can be found [here](https://doi.org/10.1002/9781118763520.ch11).
+
+```{r speeding}
+
+### Packages
+library(lubridate)
+
+
+### Detecting speeding
+# creating a column with the time difference between the start time and end time
+df$completetime <- difftime(df$exit_timestamp, df$entrance_timestamp)
+
+# calculating a cutoff (1/3 median of the above)
+cutoff <- median(df$completetime[!is.na(df$completetime)]) * 0.3
+cutoff # displaying cutoff
+
+df$speeder <- 0 # creating a "speeder" column initialized to 0
+df$speeder[df$completetime <= cutoff] <- 1 # setting to 1 for those where the complete time is less or equal to than the median
+
+```
 
 ## Inconsistency checks
 

@@ -236,6 +236,8 @@ Participant IP addresses are collected as they complete the baseline survey. Usi
 
 If you are running this script once data collection is complete, only cached data will be used and no integration with IPinfo is needed.
 
+Comparison between self-reported and IP location is handled in [Inconsistency checks].
+
 ```{r ip}
 
 ### Functions used
@@ -392,7 +394,23 @@ Several inconsistency checks
 
 ```{r age incon}
 
+# Packages used
+library(lubridate)
 
+# fixing the date of birth (dob) variable (this already existed in the dataset)
+df$dob <- str_c(df$dob_year, "-", df$dob_month, "-01")
+# fixing the calculated age, rounding to nearest full number (this variable also already existed)
+df$zage_calc <- round(
+  as.numeric(
+    difftime(df$today, df$dob, units = "weeks")
+    , units = "weeks")
+  /52.18 # dividing as difftime units only go up to weeks; converting to years
+)
+
+df$incon_age <- 0 # initializing inconsistency variable as being "0"
+# if self-reported age and calculated age are not equal (with a margin of 1)
+df$incon_age[df$age_screen+1 != df$zage_calc 
+             & df$age_screen != df$zage_calc] <- 1 # set to 1
 
 ```
 

@@ -243,6 +243,7 @@ df$ac_duplicate[df$access_code %in% duplicated_access_codes] <- 1
 
 # removing unneeded environment objects
 rm(duplicated_access_codes)
+
 ```
 
 # Data quality checks

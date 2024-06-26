@@ -226,6 +226,25 @@ rm(validpairs)
 
 ```
 
+## Duplicate access codes
+
+Duplicate access codes in the follow-up surveys are handled in [Data Linkage](#sec-data-linkage). Duplicate access codes at the baseline are handled below. This is not something which should happen often and is indicative of participants copying the initial survey link once they reach the screening questions. These participants are considered to be gaming the system, and are flagged for removal.
+
+```{r duplicate acs}
+
+# getting a vector of duplicate access codes
+duplicated_access_codes <- unique(df$access_code[duplicated(df$access_code)])
+# removing NA from the above vector
+duplicated_access_codes <- duplicated_access_codes[!is.na(duplicated_access_codes)]
+
+df$ac_duplicate <- 0
+# flagging those who have a duplicate access code
+df$ac_duplicate[df$access_code %in% duplicated_access_codes] <- 1
+
+# removing unneeded environment objects
+rm(duplicated_access_codes)
+```
+
 # Data quality checks
 
 The sections below deal with various aspects of checking for data quality. The primary goal is verifying that participants are genuine and attentive.
@@ -348,13 +367,16 @@ if (!is_empty(unfetched_IPs)) { # if there is at least 1 IP address
     loc$id <- id # adding ip address to the region
     LOCATIONS <- rbind(LOCATIONS, loc) # binding this row of data to the larger location data file
   }
-  rm(loc,ip,id,IPINFO_API_TOKEN,IPs) # removing unneeded data going forward
+  rm(loc,ip,id) # removing unneeded data used in this loop
 }
 
 # combining the location data into the larger dataset, joining by record ID
 df <- left_join(
   df, LOCATIONS, by = c("record_id" = "id")
 )
+
+# removing unneeded environment objects
+rm(IPINFO_API_TOKEN, ipdat, unlistLists, unfetched_IPs, IPs)
 ```
 
 ## Speeding
@@ -379,6 +401,9 @@ cutoff # displaying cutoff
 
 df$speeder <- 0 # creating a "speeder" column initialized to 0
 df$speeder[df$completetime <= cutoff] <- 1 # setting to 1 for those where the complete time is less or equal to than the median
+
+# removing unneeded environment objects
+rm(cutoff)
 
 ```
 
@@ -491,7 +516,11 @@ df$attncheck_fail[df$attncheck %in% c(0, 2, 3)] <- 1
 
 ## Long-string analysis
 
-Long-string analysis (also known as straight-lining) is checked using a custom function.
+Long-string analysis (also known as straight-lining) is checked using a custom function. Each range of variables will have its own column created, with a value of TRUE indicating straight-lining present and FALSE indicating no straight-lining. Note that the function defined also has the ability to ignore missing values and any specified values (e.g., system missing). In this case, we will ignore only missing values.
+
+Generally, we exclude participants who are flagged for straight-lining on more than one third of measures. In this case, since there are 5 measures being verified, we are flagging for removal those who straight-lined on more than 2 measures.
+
+There are several variables created here: one flag variable for each range checked, a summary variable summing the number of flags, and a final summary flag for highlighting participants who straight-lined on more than 4 measures.
 
 ```{r longstring}
 
@@ -537,15 +566,53 @@ SL.check <- function(df, vars, new_col, ignore.na = TRUE, ignore.value = c(), ig
   df
 }
 
+df <- SL.check(df, c("pbsm_sf_1", "pbsm_sf_13"), "SL_pbsm")
+df <- SL.check(df, c("snp_1", "snp_7"), "SL_snp")
+df <- SL.check(df, c("gad_1", "gad_7"), "SL_gad", ignore.vars = c("attncheck"))
+df <- SL.check(df, c("phq_1", "phq_8"), "SL_phq")
+df <- SL.check(df, c("k6_01", "k6_06"), "SL_k6")
+
+# Add a new column called "SL.total" to the data frame
+first_SL <- which(colnames(df) == "SL_pbsm")
+last_SL <- which(colnames(df) == "SL_k6")
+
+df$SL_total <- rowSums(df[first_SL:last_SL])
+
+# Creates a flag which is 0 if they pass, and 1 if participants were flagged
+# for straightlining more than 4 times.
+df$SL_flag <- 0
+df$SL_flag[df$SL_total > 2] <- 1
+
+# removing unneeded environment objects
+rm(SL.check, first_SL, last_SL)
+
+
 ```
 
-## Duplicate access codes
+# Exclusion summary
 
-Duplicate access codes in the follow-up surveys are handled in [Data Linkage](#sec-data-linkage). Duplicate access codes at the baseline are handled below. This is not something which should happen often and is indicative of participants copying the initial survey link once they reach the screening questions. These participants are considered to be gaming the system, and are flagged for removal.
+The code below generates a summary variable, flagging participants for exclusion based on the variables generated above. For this project, the team has opted to flag for exclusion participants who fail any given data quality check.
 
-```{r duplicate acs}
+```{r exclude}
 
+df$exclude <- 0
+df$exclude[
+  df$invalid_code == 1
+  | df$blank_code == 1
+  | df$speeder == 1
+  | df$incon_cudit1 == 1
+  | df$incon_cuditcheck == 1
+  | df$incon_canfreq == 1
+  | df$incon_can3mon == 1
+  | df$incon_age == 1
+  | df$incon_province == 1
+  | df$attncheck_fail == 1
+  | df$SL_flag == 1
+  | df$ac_duplicate == 1
+] <- 1
 
+## TODO:
+# check that this actually works - currently, everyone is flagged
 
 ```
 
@@ -553,7 +620,7 @@ Duplicate access codes in the follow-up surveys are handled in [Data Linkage](#s
 
 The code below generates a report of relevant recruitment statistics and creates necessary files, as well as preparing the information to be sent to Google Sheets for tracking during recruitment.
 
-If you are running this code once recruitment is complete, the reports requiring Google Authentication will be skipped.
+If you are running this code once recruitment is complete, the reports requiring Google Authentication will be skipped. The tables and other demographic information that would be posted to Google Sheets and/or appended to other reports will be rendered below.
 
 ## Placeholder report name
 

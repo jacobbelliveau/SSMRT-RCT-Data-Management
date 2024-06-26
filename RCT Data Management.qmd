@@ -384,11 +384,52 @@ df$speeder[df$completetime <= cutoff] <- 1 # setting to 1 for those where the co
 
 ## Inconsistency checks
 
-Several inconsistency checks
+The code chunks below assess various inconsistency checks. These variables include questions where participants are expected to respond a certain way based on previous survey responses. The variables checked include:
 
-```{r cudit incon}
+-   cudit_1 : participants should never report "Never" using cannabis, as per the inclusion criteria
 
+-   cudit_check : this is a duplicate of cudit_1, so the same criteria are checked. It is also checked that cudit_1 and cudit_check are equal (as they are identical questions)
 
+-   can_freq_3mon : participants should not report no past 3-month cannabis use
+
+-   can_3month and can_6month : participants should report past 3- and 6-month cannabis use, as per the inclusion criteria
+
+-    age : participant self-reported age should align with their self-reported birth year/month (with some flexibility to account for not having the specific birth date)
+
+-   location : participant self-reported province should align with their location reported by their IP address, detailed in [Participant location].
+
+Each of these checks has their own indicator variable, with a value of 0 indicating "pass" and a value of 1 indicating "fail"
+
+```{r cudit1 incon}
+
+df$incon_cudit1 <- 0
+# checks that cudit_1 and cudit_check are equal to 1; flags those who are not
+df$incon_cudit1[df$cudit_1 == 0] <- 1
+df$incon_cudit1[df$cudit_check == 0] <- 1
+
+```
+
+```{r cudit check incon}
+
+df$incon_cuditcheck <- 0
+# checks that cudit_1 and cudit_check match
+df$incon_cuditcheck[df$cudit_1 != df$cudit_check & !is.na(df$cudit_1) & !is.na(df$cudit_check)] <- 1
+
+```
+
+```{r can_freq_3mon incon}
+
+df$incon_canfreq <- 0
+# checks that can_freq_3mon is not equal to 0
+df$incon_canfreq[df$can_freq_3mon == 0] <- 1
+
+```
+
+```{r can_3month incon}
+
+df$incon_can3mon <- 0
+# checks that can_3month and can_6mon are not equal to 0
+df$incon_can3mon[df$can_3month == 0 | df$can_6mon == 0] <- 1
 
 ```
 
@@ -414,13 +455,37 @@ df$incon_age[df$age_screen+1 != df$zage_calc
 
 ```
 
+```{r location incon}
+
+# creating a temporary column of province labels based on the numeric "province_screen"
+df$province_screen_label <- recode(df$province_screen, 
+                                   '1' = 'British Columbia',
+                                   '2' = 'Alberta',
+                                   '3' = 'Saskatchewan',
+                                   '4' = 'Manitoba',
+                                   '5' = 'Ontario',
+                                   '6' = 'Quebec',
+                                   '7' = 'New Brunswick',
+                                   '8' = 'Nova Scotia',
+                                   '9' = 'Prince Edward Island',
+                                   '10' = 'Newfoundland')
+
+df$incon_province <- 0
+# checks that region and labelled variable above match, and that neither variable is blank (NA)
+df$incon_province[df$region != df$province_screen_label & !is.na(df$province_screen_label) & !is.na(df$province_screen)] <- 1
+
+df$province_screen_label <- NULL # clearing label column as it's no longer needed
+
+```
+
 ## Attention checks
 
-Some attention checks
+The code below is checking the one direct attention check in the study, which asks participants to select "Several Days" (1) as the answer for that question.
 
 ```{r select c}
 
-df$attencheck
+df$attncheck_fail <- 0
+df$attncheck_fail[df$attncheck %in% c(0, 2, 3)] <- 1
 
 ```
 

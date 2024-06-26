@@ -171,9 +171,9 @@ In the initial study link sent to participants, there are two unique identifiers
 
 ## Duplicate participants
 
-These participants are flagged for manual inspection by the research team. Once a decision is made for these participants, the decision is recorded in the code below. In general, participants who show attempts of trying to game the survey for extra compensation are excluded, and other genuine attempts are retained (e.g., participants who began the survey but did not complete it and restarted later, with responses being roughly consistent for each attempt). Signs of "gaming" the survey that were taken into consideration by the research team include:
+These participants are either automatically flagged for exclusion, or flagged for manual inspection by the research team. Once a decision is made for these participants, the decision is recorded in the code below. In general, participants who show attempts of trying to game the survey for extra compensation are excluded, and other genuine attempts are retained (e.g., participants who began the survey but did not complete it and restarted later, with responses being roughly consistent for each attempt). Signs of "gaming" the survey that were taken into consideration by the research team include:
 
--   Attempting the survey using multiple email addresses
+-   Attempting the survey using multiple email addresses (or the same email address or phone number)
 
 -   Providing different demographic information across attempts
 
@@ -592,7 +592,7 @@ rm(SL.check, first_SL, last_SL)
 
 # Exclusion summary
 
-The code below generates a summary variable, flagging participants for exclusion based on the variables generated above. For this project, the team has opted to flag for exclusion participants who fail any given data quality check.
+The code below generates a summary variable, flagging participants for exclusion based on the variables generated above. For this project, the team has opted to flag for exclusion participants who fail any given data quality check. Note that this also flags those who chose to opt out of participating in the study.
 
 ```{r exclude}
 
@@ -610,6 +610,7 @@ df$exclude[
   | df$attncheck_fail == 1
   | df$SL_flag == 1
   | df$ac_duplicate == 1
+  | df$withdraw___1 == 1
 ] <- 1
 
 ## TODO:
@@ -639,7 +640,33 @@ Reporting to Google Sheets.
 
 ```{r google reporting}
 
+## TODO: 
+# Have a file tracking recruitment numbers over time (for charting)
+# Have a pie chart of gender and province
+# Basic demographics (age, income)
 
+# if the recruitment number file exists
+if (file.exists('N.csv')) {
+  # reading recruitment numbers file
+  RECRUITMENT_NUMBERS <- read.csv('N.csv', header = TRUE)
+  
+  # if today isn't in the recruitment numbers file
+  if (RECRUITMENT_NUMBERS$date %notin% as.character(Sys.Date())) {
+    # creating a new single-row data frame with date and N
+    newN <- data.frame(date = Sys.Date(),
+                       N = length(df$record_id[df$exclude == 0])
+    )
+    # binding to existing data
+    RECRUITMENT_NUMBERS <- rbind(RECRUITMENT_NUMBERS, newN)
+    rm(newN)
+  }
+  
+  # if today IS in the file
+  if (RECRUITMENT_NUMBERS$date %in% as.character(Sys.Date())) {
+    # updates today's N with current N
+    RECRUITMENT_NUMBERS$N[RECRUITMENT_NUMBERS$date == Sys.Date()] <- length(df$record_id[df$exclude == 0])
+  }
+}
 
 ```
 
@@ -663,6 +690,9 @@ write.csv(RAW_DATA_TO_SAVE, paste(todays_folder_name, "SSMRT rawData.csv", sep =
 
 # writing location data to file
 write.xlsx(LOCATIONS, "SSMRT Location Data.xlsx")
+
+# writing N tracking to file
+write.csv(RECRUITMENT_NUMBERS, "N.csv", row.names = F)
 
 END_REACHED <- TRUE
 ```

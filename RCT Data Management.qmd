@@ -420,7 +420,7 @@ The code chunks below assess various inconsistency checks. These variables inclu
 
 -   can_3month and can_6month : participants should report past 3- and 6-month cannabis use, as per the inclusion criteria
 
--    age : participant self-reported age should align with their self-reported birth year/month (with some flexibility to account for not having the specific birth date)
+-   age : participant self-reported age should align with their self-reported birth year/month (with some flexibility to account for not having the specific birth date)
 
 -   location : participant self-reported province should align with their location reported by their IP address, detailed in [Participant location].
 
@@ -651,9 +651,9 @@ if (file.exists('N.csv')) {
   RECRUITMENT_NUMBERS <- read.csv('N.csv', header = TRUE)
   
   # if today isn't in the recruitment numbers file
-  if (RECRUITMENT_NUMBERS$date %notin% as.character(Sys.Date())) {
+  if (any(RECRUITMENT_NUMBERS$date %notin% as.character(Sys.Date()))) {
     # creating a new single-row data frame with date and N
-    newN <- data.frame(date = Sys.Date(),
+    newN <- data.frame(date = as.character(Sys.Date()),
                        N = length(df$record_id[df$exclude == 0])
     )
     # binding to existing data
@@ -662,7 +662,7 @@ if (file.exists('N.csv')) {
   }
   
   # if today IS in the file
-  if (RECRUITMENT_NUMBERS$date %in% as.character(Sys.Date())) {
+  if (any(RECRUITMENT_NUMBERS$date %in% as.character(Sys.Date()))) {
     # updates today's N with current N
     RECRUITMENT_NUMBERS$N[RECRUITMENT_NUMBERS$date == Sys.Date()] <- length(df$record_id[df$exclude == 0])
   }

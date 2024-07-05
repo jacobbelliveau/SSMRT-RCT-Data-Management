@@ -605,6 +605,7 @@ df$incon_age[df$age_screen+1 != df$zage_calc
 ```{r location incon}
 
 # creating a temporary column of province labels based on the numeric "province_screen"
+# this variable is removed later
 df$province_screen_label <- recode(df$province_screen, 
                                    '1' = 'British Columbia',
                                    '2' = 'Alberta',
@@ -615,7 +616,13 @@ df$province_screen_label <- recode(df$province_screen,
                                    '7' = 'New Brunswick',
                                    '8' = 'Nova Scotia',
                                    '9' = 'Prince Edward Island',
-                                   '10' = 'Newfoundland')
+                                   '10' = 'Newfoundland',
+                                   '11' = 'Yukon',
+                                   '12'  = 'Northwest Territories',
+                                   '13' = 'Nunavut',
+                                   '14' = 'United States of America',
+                                   '15' = 'None of the above - I live elsewhere'
+                                   )
 
 df$incon_province <- 0
 # checks that region and labelled variable above match, and that neither variable is blank (NA)
@@ -760,7 +767,7 @@ Report.
 
 Reporting to Google Sheets.
 
-```{r google reporting}
+```{r n}
 
 ## TODO: 
 # Have a file tracking recruitment numbers over time (for charting)
@@ -792,11 +799,124 @@ if (file.exists('N.csv')) {
 
 ```
 
+```{r tables}
+
+## Packages used
+library(tidyverse)
+library(finalfit)
+
+## Subset of df to only include "included" participants
+#TODO: uncomment this section; remove assignment as df
+# currently commented out as all our test attempts are excluded
+FINAL_DATA <- df
+#FINAL_DATA <- subset(df, exclude == 0)
+
+
+## Creating temporary string versions of some variables needed
+
+# Province
+# note that the province factor variable is also created in the section "inconsistency checks"; code copied here
+FINAL_DATA$province_screen_label <- recode(FINAL_DATA$province_screen, 
+                                   '1' = 'British Columbia',
+                                   '2' = 'Alberta',
+                                   '3' = 'Saskatchewan',
+                                   '4' = 'Manitoba',
+                                   '5' = 'Ontario',
+                                   '6' = 'Quebec',
+                                   '7' = 'New Brunswick',
+                                   '8' = 'Nova Scotia',
+                                   '9' = 'Prince Edward Island',
+                                   '10' = 'Newfoundland',
+                                   '11' = 'Yukon',
+                                   '12'  = 'Northwest Territories',
+                                   '13' = 'Nunavut',
+                                   '14' = 'United States of America',
+                                   '15' = 'None of the above - I live elsewhere'
+                                   )
+
+# Gender
+FINAL_DATA$gender_label <- recode(FINAL_DATA$gender,
+                                  '1'	= 'Male',
+                                  '2' =	'Female',
+                                  '3' =	'Neither male nor female',
+                                  '4' =	'Indigenous or other gender identity',
+                                  '5' =	'Other',
+                                  '6' =	'Prefer not to say'
+                                  )
+
+# Race
+FINAL_DATA$race_label <- recode(FINAL_DATA$race,
+                                '1' =	'White',
+                                '2' =	'South Asian',
+                                '3' =	'Black',
+                                '4' =	'Filipino/Pacific Islander',
+                                '5' =	'Latin American',
+                                '6' =	'Indigenous',
+                                '7' =	'South East Asian',
+                                '8' =	'Arab',
+                                '9' =	'West Asian',
+                                '10' =	'Japanese',
+                                '11' =	'Chinese',
+                                '12' =	'Korean',
+                                '13' =	'Not sure',
+                                '14' =	'Biracial',
+                                '15' =	'Other',
+                                '16' =	'Prefer not to say'
+                                )
+
+# Income
+FINAL_DATA$income_label <- recode(FINAL_DATA$incom,
+                                  '1'	= 'Less than $20,000',
+                                  '2'	=	'$20,000 to less than $40,000',
+                                  '3'	=	'$40,000 to less than $60,000',
+                                  '4'	=	'$60,000 to less than $80,000',
+                                  '5'	=	'$80,000 to less than $100,000',
+                                  '6'	=	'$100,000 to less than $150,000',
+                                  '7'	=	'$150,000 and over',
+                                  '8'	=	'Prefer not to say'
+                                )
+
+# Education
+FINAL_DATA$education_label <- recode(FINAL_DATA$edu,
+'1' =	'Less than high school diploma or equivalent',
+'2' =	'High school diploma or equivalent',
+'3' =	'Trade certificate/diploma',
+'4' =	'College, CEGEP or other non-university',
+'5' =	'University certificate or diploma',
+'6' =	"Bachelor's degree (e.g., B.A., B.Sc., LL.B.)",
+'7' =	"University certificate, diploma, degree above the bachelor's level",
+'8' =	'Prefer not to say'
+                                )
+
+# Invitation source
+FINAL_DATA$invite_label <- recode(FINAL_DATA$invite,
+                                  '1'	= 'Contacted directly through email',
+                                  '2'	= 'Advertisement on Facebook',
+                                  '3'	= 'News advertisement',
+                                  '4'	= 'Advertisement on Instagram',
+                                  '5'	= 'Other'
+                                )
+
+
+vars <- c('age_screen', 'gender_label', 'race_label', 'income_label', 'education_label', 'invite_label', 'province_screen_label')
+
+
+# TODO: add p = TRUE argument here once recruitment begins; sample too small for now
+demographic_table <- summary_factorlist(FINAL_DATA, "group_F1", vars, na_include = TRUE)
+
+tibble(demographic_table)
+
+demographic_table
+
+```
+
 ## Output files
 
 All output files created by any part of code above are saved here.
 
 ```{r output}
+
+# TODO: add final (trimmed) dataset output here
 
 # Checks for the existence of a folder in the project directory named "output" - if it does not exist, creates it.
 if (!dir.exists("output")) {dir.create("output")}

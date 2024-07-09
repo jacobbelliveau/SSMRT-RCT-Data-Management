@@ -770,7 +770,7 @@ if (file.exists('N.csv')) {
   RECRUITMENT_NUMBERS <- read.csv('N.csv', header = TRUE)
   
   # if today isn't in the recruitment numbers file
-  if (any(RECRUITMENT_NUMBERS$date %notin% as.character(Sys.Date()))) {
+  if (as.character(Sys.Date()) %notin% RECRUITMENT_NUMBERS$date) {
     # creating a new single-row data frame with date and N
     newN <- data.frame(date = as.character(Sys.Date()),
                        N = length(df$record_id[df$exclude == 0])
@@ -781,7 +781,7 @@ if (file.exists('N.csv')) {
   }
   
   # if today IS in the file
-  if (any(RECRUITMENT_NUMBERS$date %in% as.character(Sys.Date()))) {
+  if (as.character(Sys.Date()) %in% RECRUITMENT_NUMBERS$date) {
     # updates today's N with current N
     RECRUITMENT_NUMBERS$N[RECRUITMENT_NUMBERS$date == Sys.Date()] <- length(df$record_id[df$exclude == 0])
   }

@@ -30,7 +30,7 @@ More detail for each of these steps can be found in their corresponding sections
 
 Contact the project administrators at [aloveroc\@ualberta.ca](mailto:aloveroc@ualberta.ca) and/or [jacob.belliveau\@dal.ca](mailto:jacob.belliveau@dal.ca) for the files and keys needed to run.
 
-```{r data init}
+```{r data_init}
 
 library(quarto)
 
@@ -85,7 +85,7 @@ It is possible for access codes to be duplicated in any of the given 4 follow-up
 
 In the event that a participant completes the second follow-up, but does not begin/complete the first follow-up, a blank row is added to follow-up 1 with their access code.
 
-```{r data linkage}
+```{r data_linkage}
 
 library(tidyr)
 library(dplyr)
@@ -351,7 +351,7 @@ rm(validpairs)
 
 Duplicate access codes in the follow-up surveys are handled in [Data Linkage](#sec-data-linkage). Duplicate access codes at the baseline are handled below. This is not something which should happen often and is indicative of participants copying the initial survey link once they reach the screening questions. These participants are considered to be gaming the system, and are flagged for removal.
 
-```{r duplicate acs}
+```{r duplicate_acs}
 
 # getting a vector of duplicate access codes
 duplicated_access_codes <- unique(df$access_code[duplicated(df$access_code)])
@@ -547,7 +547,7 @@ The code chunks below assess various inconsistency checks. These variables inclu
 
 Each of these checks has their own indicator variable, with a value of 0 indicating "pass" and a value of 1 indicating "fail"
 
-```{r cudit1 incon}
+```{r cudit1}
 
 df$incon_cudit1 <- 0
 # checks that cudit_1 and cudit_check are equal to 1; flags those who are not
@@ -556,7 +556,7 @@ df$incon_cudit1[df$cudit_check == 0] <- 1
 
 ```
 
-```{r cudit check incon}
+```{r cudit check}
 
 df$incon_cuditcheck <- 0
 # checks that cudit_1 and cudit_check match
@@ -564,7 +564,7 @@ df$incon_cuditcheck[df$cudit_1 != df$cudit_check & !is.na(df$cudit_1) & !is.na(d
 
 ```
 
-```{r can_freq_3mon incon}
+```{r can_freq_3mon}
 
 df$incon_canfreq <- 0
 # checks that can_freq_3mon is not equal to 0
@@ -572,7 +572,7 @@ df$incon_canfreq[df$can_freq_3mon == 0] <- 1
 
 ```
 
-```{r can_3month incon}
+```{r can_3month}
 
 df$incon_can3mon <- 0
 # checks that can_3month and can_6mon are not equal to 0
@@ -580,7 +580,7 @@ df$incon_can3mon[df$can_3month == 0 | df$can_6mon == 0] <- 1
 
 ```
 
-```{r age incon}
+```{r age}
 
 # Packages used
 library(lubridate)
@@ -602,11 +602,11 @@ df$incon_age[df$age_screen+1 != df$zage_calc
 
 ```
 
-```{r location incon}
+```{r location}
 
 # creating a temporary column of province labels based on the numeric "province_screen"
 # this variable is removed later
-df$province_screen_label <- recode(df$province_screen, 
+df$province_screen_label <- dplyr::recode(df$province_screen, 
                                    '1' = 'British Columbia',
                                    '2' = 'Alberta',
                                    '3' = 'Saskatchewan',
@@ -753,19 +753,9 @@ The code below generates a report of relevant recruitment statistics and creates
 
 If you are running this code once recruitment is complete, the reports requiring Google Authentication will be skipped. The tables and other demographic information that would be posted to Google Sheets and/or appended to other reports will be rendered below.
 
-## Placeholder report name
+## N tracking
 
-Report.
-
-```{r report name}
-
-
-
-```
-
-## Google reporting
-
-Reporting to Google Sheets.
+The code below keeps a running tally of the number of eligible participants each time it is run. This sheet is shared on GitHub and also posted on Google Sheets in [Google reporting], where it is more up-to-date.
 
 ```{r n}
 
@@ -799,11 +789,17 @@ if (file.exists('N.csv')) {
 
 ```
 
+## Tables
+
+The code below creates tables that will be posted in the HTML file, as well as posted to Google Sheets in [Google reporting].
+
 ```{r tables}
 
 ## Packages used
 library(tidyverse)
 library(finalfit)
+library(expss)
+library(knitr)
 
 ## Subset of df to only include "included" participants
 #TODO: uncomment this section; remove assignment as df
@@ -816,7 +812,7 @@ FINAL_DATA <- df
 
 # Province
 # note that the province factor variable is also created in the section "inconsistency checks"; code copied here
-FINAL_DATA$province_screen_label <- recode(FINAL_DATA$province_screen, 
+FINAL_DATA$province_screen_label <- dplyr::recode(FINAL_DATA$province_screen, 
                                    '1' = 'British Columbia',
                                    '2' = 'Alberta',
                                    '3' = 'Saskatchewan',
@@ -835,7 +831,7 @@ FINAL_DATA$province_screen_label <- recode(FINAL_DATA$province_screen,
                                    )
 
 # Gender
-FINAL_DATA$gender_label <- recode(FINAL_DATA$gender,
+FINAL_DATA$gender_label <- dplyr::recode(FINAL_DATA$gender,
                                   '1'	= 'Male',
                                   '2' =	'Female',
                                   '3' =	'Neither male nor female',
@@ -845,7 +841,7 @@ FINAL_DATA$gender_label <- recode(FINAL_DATA$gender,
                                   )
 
 # Race
-FINAL_DATA$race_label <- recode(FINAL_DATA$race,
+FINAL_DATA$race_label <- dplyr::recode(FINAL_DATA$race,
                                 '1' =	'White',
                                 '2' =	'South Asian',
                                 '3' =	'Black',
@@ -865,7 +861,7 @@ FINAL_DATA$race_label <- recode(FINAL_DATA$race,
                                 )
 
 # Income
-FINAL_DATA$income_label <- recode(FINAL_DATA$incom,
+FINAL_DATA$income_label <- dplyr::recode(FINAL_DATA$incom,
                                   '1'	= 'Less than $20,000',
                                   '2'	=	'$20,000 to less than $40,000',
                                   '3'	=	'$40,000 to less than $60,000',
@@ -877,7 +873,7 @@ FINAL_DATA$income_label <- recode(FINAL_DATA$incom,
                                 )
 
 # Education
-FINAL_DATA$education_label <- recode(FINAL_DATA$edu,
+FINAL_DATA$education_label <- dplyr::recode(FINAL_DATA$edu,
 '1' =	'Less than high school diploma or equivalent',
 '2' =	'High school diploma or equivalent',
 '3' =	'Trade certificate/diploma',
@@ -889,7 +885,7 @@ FINAL_DATA$education_label <- recode(FINAL_DATA$edu,
                                 )
 
 # Invitation source
-FINAL_DATA$invite_label <- recode(FINAL_DATA$invite,
+FINAL_DATA$invite_label <- dplyr::recode(FINAL_DATA$invite,
                                   '1'	= 'Contacted directly through email',
                                   '2'	= 'Advertisement on Facebook',
                                   '3'	= 'News advertisement',
@@ -900,13 +896,91 @@ FINAL_DATA$invite_label <- recode(FINAL_DATA$invite,
 
 vars <- c('age_screen', 'gender_label', 'race_label', 'income_label', 'education_label', 'invite_label', 'province_screen_label')
 
+# applying labels (for better representation in the table)
+FINAL_DATA <- apply_labels(FINAL_DATA,
+                           #age_screen = "Age", This breaks the next function, so I rename it manually later
+                           gender_label = "Gender",
+                           race_label = "Race",
+                           income_label = "Income",
+                           education_label = "Education",
+                           invite_label = "Invitation source",
+                           province_screen_label = "Province")
+
 
 # TODO: add p = TRUE argument here once recruitment begins; sample too small for now
 demographic_table <- summary_factorlist(FINAL_DATA, "group_F1", vars, na_include = TRUE)
 
-tibble(demographic_table)
+demographic_table$label[demographic_table$label == "age_screen"] <- "Age"
 
-demographic_table
+kable(demographic_table)
+
+### Removing unneeded environment variables
+rm(vars)
+
+### Removing temporary variables
+FINAL_DATA$province_screen_label <- NULL
+FINAL_DATA$gender_label <- NULL
+FINAL_DATA$race_label <- NULL
+FINAL_DATA$income_label <- NULL
+FINAL_DATA$education_label <- NULL
+FINAL_DATA$invite_label <- NULL
+
+```
+
+## Google reporting
+
+Reporting the above sections to Google Sheets.
+
+```{r google_sheets}
+
+# if the USER_EMAIL and DOC_ID variables exist (if not; section skipped)
+if (exists("USER_EMAIL") & exists("DOC_ID")) {
+
+  # Packages needed
+  library(googlesheets4)
+  
+  # Authenticating Google Account
+  gs4_auth(email = USER_EMAIL)
+  
+  ### Tracking study total eligible N
+  #reading online data
+  online_N <- read_sheet(ss = DOC_ID, sheet = "N")
+  
+  # if today's date is in the online data
+  if (as.character(Sys.Date()) %in% online_N$date) {
+    # updating associated N in the sheet
+    online_N$N[online_N$date == as.character(Sys.Date())] <- 
+      RECRUITMENT_NUMBERS$N[RECRUITMENT_NUMBERS$date == as.character(Sys.Date())]
+    
+    # writing to online tracking document
+    sheet_write(online_N,
+              ss = DOC_ID,
+              sheet = "N")
+    
+  } else { # if today's date is NOT in the sheet
+    
+    # creating a dataframe with today's date and eligible N
+    newN <- data.frame(date = as.character(Sys.Date()),
+                         N = length(df$record_id[df$exclude == 0])
+    )
+    
+    # appending to online sheet
+    sheet_append(ss = DOC_ID,
+                 sheet = "N",
+                 newN)
+    
+    # removing unneeded variables
+    rm(newN)
+  }
+  
+  ### Writing demographic table to Google Sheets
+  sheet_write(demographic_table,
+              ss = DOC_ID,
+              sheet = "Demographics")
+  
+  ### Removing unneeded variables
+  rm(demographic_table, online_N, DOC_ID, USER_EMAIL)
+}
 
 ```
 

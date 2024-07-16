@@ -912,6 +912,31 @@ demographic_table <- summary_factorlist(FINAL_DATA, "group_F1", vars, na_include
 
 demographic_table$label[demographic_table$label == "age_screen"] <- "Age"
 
+google_info <- subset(FINAL_DATA, select = c(age_screen, gender_label, income_label, education_label, invite_label, province_screen_label))
+
+
+
+
+google_info[is.na(google_info)] <- "Missing"
+
+google_info$age_screen <- sort(google_info$age_screen)
+google_info$gender_label <- sort(google_info$gender_label)
+google_info$income_label <- sort(google_info$income_label)
+google_info$education_label <- sort(google_info$education_label)
+google_info$invite_label <- sort(google_info$invite_label)
+google_info$province_screen_label <- sort(google_info$province_screen_label)
+
+google_info$age_screen <- as.numeric(google_info$age_screen)
+
+
+
+
+
+
+
+
+
+
 kable(demographic_table)
 
 ### Removing unneeded environment variables
@@ -974,7 +999,7 @@ if (exists("USER_EMAIL") & exists("DOC_ID")) {
   }
   
   ### Writing demographic table to Google Sheets
-  sheet_write(demographic_table,
+  sheet_write(google_info,
               ss = DOC_ID,
               sheet = "Demographics")
   

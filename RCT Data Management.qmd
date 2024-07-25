@@ -178,7 +178,7 @@ These participants are either automatically flagged for exclusion, or flagged fo
 
 ## Duplicate participants
 
-The code below creates a variable (manual_check), flagging participants for manual inspection if they provided an email, phone number, access codes, or IP addresses. The research team discusses any participants who are flagged by these checks, and once a decision is reached, these decisions are recorded in a CSV file. The code then checks this list, and creates a second variable (manual_decision) un-flagging any participants who have already had a decision made.
+The code below creates a variable (manual_check), flagging participants for manual inspection if they provided a duplicate email, phone number, access codes, or IP addresses. The research team discusses any participants who are flagged by these checks, and once a decision is reached, these decisions are recorded in a CSV file. The code then checks this list, and creates a second variable (manual_decision) un-flagging any participants who have already had a decision made.
 
 The file containing decisions has 3 columns: [access_code]{.underline}, [record_id]{.underline}, and [decision]{.underline}. These columns are used as follows:
 
@@ -742,6 +742,9 @@ df$exclude[
   | df$withdraw___1 == 1
 ] <- 1
 
+# un-excludes participants who we have decided to manually keep
+df$exclude[df$manual_check == 2 & df$manual_decided == 0] <- 0
+
 ## TODO:
 # check that this actually works - currently, everyone is flagged
 
@@ -758,11 +761,6 @@ If you are running this code once recruitment is complete, the reports requiring
 The code below keeps a running tally of the number of eligible participants each time it is run. This sheet is shared on GitHub and also posted on Google Sheets in [Google reporting], where it is more up-to-date.
 
 ```{r n}
-
-## TODO: 
-# Have a file tracking recruitment numbers over time (for charting)
-# Have a pie chart of gender and province
-# Basic demographics (age, income)
 
 # if the recruitment number file exists
 if (file.exists('N.csv')) {
@@ -802,10 +800,7 @@ library(expss)
 library(knitr)
 
 ## Subset of df to only include "included" participants
-#TODO: uncomment this section; remove assignment as df
-# currently commented out as all our test attempts are excluded
-FINAL_DATA <- df
-#FINAL_DATA <- subset(df, exclude == 0)
+FINAL_DATA <- subset(df, exclude == 0)
 
 
 ## Creating temporary string versions of some variables needed
@@ -1015,8 +1010,6 @@ All output files created by any part of code above are saved here.
 
 ```{r output}
 
-# TODO: add final (trimmed) dataset output here
-
 # Checks for the existence of a folder in the project directory named "output" - if it does not exist, creates it.
 if (!dir.exists("output")) {dir.create("output")}
 
@@ -1028,6 +1021,12 @@ if (!dir.exists(todays_folder_name)) {dir.create(todays_folder_name)}
 
 # writing raw data to file
 write.csv(RAW_DATA_TO_SAVE, paste(todays_folder_name, "SSMRT rawData.csv", sep = ""), row.names = FALSE)
+
+# writing cleaned data to file (including those excluded)
+write.csv(df, paste(todays_folder_name, "SSMRT dataAll.csv", sep = ""), row.names = FALSE)
+
+# writing cleaned data to file (excluding those excluded)
+write.csv(FINAL_DATA, paste(todays_folder_name, "SSMRT dataFinal.csv", sep = ""), row.names = FALSE)
 
 # writing location data to file
 write.xlsx(LOCATIONS, "SSMRT Location Data.xlsx")

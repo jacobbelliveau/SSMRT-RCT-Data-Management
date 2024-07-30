@@ -89,76 +89,83 @@ In the event that a participant completes the second follow-up, but does not beg
 
 library(tidyr)
 library(dplyr)
+library(rlang)
 
 ### Functions used in this section:
 `%notin%` <- Negate(`%in%`) # opposite of the %in% operator
 
-### first combining into wide format
-
-# first correcting the final variable of the dataset (binary variable indicating if they finished the survey; different name for each survey)
-
-ctl1_df <- rename(ctl1_df, 
-       followup_complete = rct_follow_up_1_control_group_complete)
-ctl2_df <- rename(ctl2_df, 
-       followup_complete = rct_follow_up_2_control_group_complete)
-
-int1_df <- rename(int1_df, 
-       followup_complete = rct_follow_up_1_intervention_group_complete)
-int2_df <- rename(int2_df, 
-       followup_complete = rct_follow_up_2_intervention_group_complete)
-
-### The section below handles participants who complete the follow-up 2 survey, but not follow-up 1. Without this section, these participants would be lost at the full-join operation below. 
-
-## Control group
-# getting a list of unique access codes in follow up 2 of the control group
-ctl_pt2_acs <- unique(ctl2_df$access_code[!is.na(ctl2_df$access_code)])
-
-# checking if all access codes in F2 are in F1. If they are not...
-if (!all(ctl_pt2_acs %in% ctl1_df$access_code)) {
-  # for each access code missing from F1...
-  for (AC in ctl_pt2_acs[ctl_pt2_acs %notin% ctl1_df$access_code]) {
-    # add a blank/NA row to F1
-    ctl1_df[nrow(ctl1_df)+1,] <- NA
-    # add in the missing access code to the empty row
-    ctl1_df[nrow(ctl1_df),4] <- AC
-    # removes the access code from the environment
-    rm(AC)
+# checking if followup data is empty; if empty, linking is skipped
+# this was used at the beginning stages of recruitment
+if (!any(is_empty(ctl1_df) | is_empty(ctl2_df) | is_empty(int1_df) | is_empty(int2_df))) {
+  
+  ### first combining into wide format
+  
+  # first correcting the final variable of the dataset (binary variable indicating if they finished the survey; different name for each survey)
+  
+  ctl1_df <- rename(ctl1_df, 
+         followup_complete = rct_follow_up_1_control_group_complete)
+  ctl2_df <- rename(ctl2_df, 
+         followup_complete = rct_follow_up_2_control_group_complete)
+  
+  int1_df <- rename(int1_df, 
+         followup_complete = rct_follow_up_1_intervention_group_complete)
+  int2_df <- rename(int2_df, 
+         followup_complete = rct_follow_up_2_intervention_group_complete)
+  
+  ### The section below handles participants who complete the follow-up 2 survey, but not follow-up 1. Without this section, these participants would be lost at the full-join operation below. 
+  
+  ## Control group
+  # getting a list of unique access codes in follow up 2 of the control group
+  ctl_pt2_acs <- unique(ctl2_df$access_code[!is.na(ctl2_df$access_code)])
+  
+  # checking if all access codes in F2 are in F1. If they are not...
+  if (!all(ctl_pt2_acs %in% ctl1_df$access_code)) {
+    # for each access code missing from F1...
+    for (AC in ctl_pt2_acs[ctl_pt2_acs %notin% ctl1_df$access_code]) {
+      # add a blank/NA row to F1
+      ctl1_df[nrow(ctl1_df)+1,] <- NA
+      # add in the missing access code to the empty row
+      ctl1_df[nrow(ctl1_df),4] <- AC
+      # removes the access code from the environment
+      rm(AC)
+    }
+  
   }
-
-}
-
-## Intervention group
-# getting a list of unique access codes in follow up 2 of the control group
-int_pt2_acs <- unique(int2_df$access_code[!is.na(int2_df$access_code)])
-
-# checking if all access codes in F2 are in F1. If they are not...
-if (!all(int_pt2_acs %in% int1_df$access_code)) {
-  # for each access code missing from F1...
-  for (AC in int_pt2_acs[int_pt2_acs %notin% int1_df$access_code]) {
-    # add a blank/NA row to F1
-    int1_df[nrow(int1_df)+1,] <- NA
-    # add in the missing access code to the empty row
-    int1_df[nrow(int1_df),4] <- AC
-    # removes the access code from the environment
-    rm(AC)
+  
+  ## Intervention group
+  # getting a list of unique access codes in follow up 2 of the control group
+  int_pt2_acs <- unique(int2_df$access_code[!is.na(int2_df$access_code)])
+  
+  # checking if all access codes in F2 are in F1. If they are not...
+  if (!all(int_pt2_acs %in% int1_df$access_code)) {
+    # for each access code missing from F1...
+    for (AC in int_pt2_acs[int_pt2_acs %notin% int1_df$access_code]) {
+      # add a blank/NA row to F1
+      int1_df[nrow(int1_df)+1,] <- NA
+      # add in the missing access code to the empty row
+      int1_df[nrow(int1_df),4] <- AC
+      # removes the access code from the environment
+      rm(AC)
+    }
+  
   }
-
+  
+  # combining control follow-ups into one dataset
+  control <- full_join(ctl1_df, ctl2_df, by = "access_code", suffix = c("_F1", "_F2"), na_matches = "never")
+  
+  # combining intervention follow-ups into one dataset
+  intervention <- full_join(int1_df, int2_df, by = "access_code", suffix = c("_F1", "_F2"), na_matches = "never")
+  
+  # combining the intervention and control datasets
+  followup <- rbind(control, intervention)
+  
+  # combining the follow-up surveys to baseline
+  # NOTE: here, participants without access codes in the follow-up are discarded
+  # NOTE: the "latest" response is kept for participants with duplicate access codes
+  df <- left_join(baseline_df, followup, by = "access_code", na_matches = "never", multiple = "last")
+} else { # if follow-ups are empty, baseline dataset is used as df going forward
+  df <- baseline_df
 }
-
-# combining control follow-ups into one dataset
-control <- full_join(ctl1_df, ctl2_df, by = "access_code", suffix = c("_F1", "_F2"), na_matches = "never")
-
-# combining intervention follow-ups into one dataset
-intervention <- full_join(int1_df, int2_df, by = "access_code", suffix = c("_F1", "_F2"), na_matches = "never")
-
-# combining the intervention and control datasets
-followup <- rbind(control, intervention)
-
-# combining the follow-up surveys to baseline
-# NOTE: here, participants without access codes in the follow-up are discarded
-# NOTE: the "latest" response is kept for participants with duplicate access codes
-df <- left_join(baseline_df, followup, by = "access_code", na_matches = "never", multiple = "last")
-
 # removing temporary variables ; df will be used going forward
 rm(control, intervention, followup, int1_df, int2_df, ctl1_df, ctl2_df, baseline_df, ctl_pt2_acs, int_pt2_acs)
 
@@ -750,6 +757,68 @@ df$exclude[df$manual_check == 2 & df$manual_decided == 0] <- 0
 
 ```
 
+# Followup Tracking
+
+The code below reads a file of followup survey tracking information. Keeps track of the dates of follow-ups and if/when those follow-ups were completed. Contains 3 columns for each follow-up point:
+
+-   send_by: the date at which follow-ups should be sent.
+
+-   sent: an indicator filled manually, indicating the follow-up was sent. NA indicates it has not yet been sent.
+
+-   done: the date at which the follow-up was completed by the participants. NA indicates it has not yet been completed.
+
+```{r followup}
+
+# reading file of tracking information
+followups <- read.csv("Followup Tracking.csv", header = TRUE)
+
+# for each valid/un-excluded access code, add these as a new row to the tracking file if they are not already in the tracking file
+for (AC in df$access_code[df$exclude == 0]){
+  if (AC %notin% followups$access_code){
+    followups[nrow(followups)+1, 1] <- AC
+  }
+}
+
+# for the access codes with blank "send by" dates, add them
+# calculated as exit date + 14 days (or + 28 days for F2)
+for (AC in followups$access_code[is.na(followups$f1_send_by)]) {
+  followups$f1_send_by[followups$access_code == AC] <- 
+    as.character(date(df$exit_timestamp[df$access_code == AC & df$exclude == 0])+14)
+}
+
+for (AC in followups$access_code[is.na(followups$f2_send_by)]) {
+  followups$f2_send_by[followups$access_code == AC] <- 
+    as.character(date(df$exit_timestamp[df$access_code == AC & df$exclude == 0])+28)
+}
+
+# if data exists for F1,
+# for each access code with blank "done" columns,
+# checks if F1 has been completed
+# if completed, adds completion date to tracking file
+# same code repeated for F2 below
+if ("exit_timestamp_F1" %in% names(df)) {
+  for(AC in followups$access_code[is.na(followups$f1_done)]) {
+    if (!is.na(df$exit_timestamp_F1[df$access_code == AC])) {
+      followups$f1_done <- as.character(date(df$exit_timestamp_F1[df$access_code == AC]))
+    }
+  }
+}
+
+if ("exit_timestamp_F2" %in% names(df)) {
+  for(AC in followups$access_code[is.na(followups$f2_done)]) {
+    if (!is.na(df$exit_timestamp_F2[df$access_code == AC])) {
+      followups$f2_done <- as.character(date(df$exit_timestamp_F2[df$access_code == AC]))
+    }
+  }
+}
+
+# write to file
+write.csv(followups, "Followup Tracking.csv", row.names = FALSE)
+
+rm(AC, followups)
+
+```
+
 # Report generation
 
 The code below generates a report of relevant recruitment statistics and creates necessary files, as well as preparing the information to be sent to Google Sheets for tracking during recruitment.
@@ -903,37 +972,26 @@ FINAL_DATA <- apply_labels(FINAL_DATA,
 
 
 # TODO: add p = TRUE argument here once recruitment begins; sample too small for now
-demographic_table <- summary_factorlist(FINAL_DATA, "group_F1", vars, na_include = TRUE)
+if ("group_F1" %in% names(df)){
+  demographic_table <- summary_factorlist(FINAL_DATA, "group_F1", vars, na_include = TRUE)
+  
+  demographic_table$label[demographic_table$label == "age_screen"] <- "Age"
+  
+  google_info <- subset(FINAL_DATA, select = c(age_screen, gender_label, income_label, education_label, invite_label, province_screen_label))
 
-demographic_table$label[demographic_table$label == "age_screen"] <- "Age"
-
-google_info <- subset(FINAL_DATA, select = c(age_screen, gender_label, income_label, education_label, invite_label, province_screen_label))
-
-
-
-
-google_info[is.na(google_info)] <- "Missing"
-
-google_info$age_screen <- sort(google_info$age_screen)
-google_info$gender_label <- sort(google_info$gender_label)
-google_info$income_label <- sort(google_info$income_label)
-google_info$education_label <- sort(google_info$education_label)
-google_info$invite_label <- sort(google_info$invite_label)
-google_info$province_screen_label <- sort(google_info$province_screen_label)
-
-google_info$age_screen <- as.numeric(google_info$age_screen)
-
-
-
-
-
-
-
-
-
-
-kable(demographic_table)
-
+  google_info[is.na(google_info)] <- "Missing"
+  
+  google_info$age_screen <- sort(google_info$age_screen)
+  google_info$gender_label <- sort(google_info$gender_label)
+  google_info$income_label <- sort(google_info$income_label)
+  google_info$education_label <- sort(google_info$education_label)
+  google_info$invite_label <- sort(google_info$invite_label)
+  google_info$province_screen_label <- sort(google_info$province_screen_label)
+  
+  google_info$age_screen <- as.numeric(google_info$age_screen)
+  
+  kable(demographic_table)
+}
 ### Removing unneeded environment variables
 rm(vars)
 
@@ -954,7 +1012,7 @@ Reporting the above sections to Google Sheets.
 ```{r google_sheets}
 
 # if the USER_EMAIL and DOC_ID variables exist (if not; section skipped)
-if (exists("USER_EMAIL") & exists("DOC_ID")) {
+if (exists("USER_EMAIL") & exists("DOC_ID") & exists("google_info")) {
 
   # Packages needed
   library(googlesheets4)

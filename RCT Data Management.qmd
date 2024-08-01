@@ -783,12 +783,12 @@ for (AC in df$access_code[df$exclude == 0]){
 # calculated as exit date + 14 days (or + 28 days for F2)
 for (AC in followups$access_code[is.na(followups$f1_send_by)]) {
   followups$f1_send_by[followups$access_code == AC] <- 
-    as.character(date(df$exit_timestamp[df$access_code == AC & df$exclude == 0])+14)
+    as.character(date(df$entrance_timestamp[df$access_code == AC & df$exclude == 0])+14)
 }
 
 for (AC in followups$access_code[is.na(followups$f2_send_by)]) {
   followups$f2_send_by[followups$access_code == AC] <- 
-    as.character(date(df$exit_timestamp[df$access_code == AC & df$exclude == 0])+28)
+    as.character(date(df$entrance_timestamp[df$access_code == AC & df$exclude == 0])+28)
 }
 
 # if data exists for F1,
@@ -799,7 +799,7 @@ for (AC in followups$access_code[is.na(followups$f2_send_by)]) {
 if ("exit_timestamp_F1" %in% names(df)) {
   for(AC in followups$access_code[is.na(followups$f1_done)]) {
     if (!is.na(df$exit_timestamp_F1[df$access_code == AC])) {
-      followups$f1_done <- as.character(date(df$exit_timestamp_F1[df$access_code == AC]))
+      followups <- followups[followups$access_code != AC,]
     }
   }
 }
@@ -812,8 +812,14 @@ if ("exit_timestamp_F2" %in% names(df)) {
   }
 }
 
-# write to file
-write.csv(followups, "Followup Tracking.csv", row.names = FALSE)
+# removing people who are manually excluded if they are present in the sheet
+for (AC in followups$access_code) {
+  if (df$exclude[df$access_code == AC & !is.na(df$access_code)] == 1) {
+    followups <- followups[followups$access_code != AC,]
+  }
+}
+
+FOLLOWUPS <- followups
 
 rm(AC, followups)
 
@@ -1091,6 +1097,9 @@ write.xlsx(LOCATIONS, "SSMRT Location Data.xlsx")
 
 # writing N tracking to file
 write.csv(RECRUITMENT_NUMBERS, "N.csv", row.names = F)
+
+# writing followup tracking information to file
+write.csv(FOLLOWUPS, "Followup Tracking.csv", row.names = FALSE)
 
 END_REACHED <- TRUE
 ```

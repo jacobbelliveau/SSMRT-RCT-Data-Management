@@ -224,7 +224,7 @@ duplicate_access_code <- duplicate_access_code[!is.na(duplicate_access_code)]
 
 ## Getting a vector of duplicate IP addresses
   # reading in IP address file
-IPs <- read.xlsx("SSMRT IPs.xlsx", sheet = 1)
+IPs <- read.xlsx("SSMRT Participant Info.xlsx", sheet = "IPs")
 
   # finding duplicates (there are no NAs in this file)
 duplicate_ips <- unique(IPs$ip[duplicated(IPs$ip)])
@@ -252,7 +252,7 @@ df$manual_check[df$record_id %in% (IPs$record_id[IPs$ip %in% duplicate_ips])] <-
 df$manual_decided <- df$manual_check
 
 # reading in the file recording decisions
-decisions <- read.csv("Manual Decisions.csv", header = TRUE)
+decisions <- read.xlsx("SSMRT Participant Info.xlsx", sheet = "Manual decisions")
 
 # handling decisions made solely with access codes (applied to all attempts)
 for (id in decisions$access_code[is.na(decisions$record_id)]) {
@@ -776,7 +776,7 @@ The code below reads a file of followup survey tracking information. Keeps track
 ```{r followup}
 
 # reading file of tracking information
-followups <- read.csv("Followup Tracking.csv", header = TRUE)
+followups <- read.xlsx("SSMRT Participant Info.xlsx", sheet = "Followup tracking")
 
 # for each valid/un-excluded access code, add these as a new row to the tracking file if they are not already in the tracking file
 for (AC in df$access_code[df$exclude == 0]){
@@ -844,9 +844,9 @@ The code below keeps a running tally of the number of eligible participants each
 ```{r n}
 
 # if the recruitment number file exists
-if (file.exists('N.csv')) {
+if (file.exists('SSMRT Participant Info.xlsx')) {
   # reading recruitment numbers file
-  RECRUITMENT_NUMBERS <- read.csv('N.csv', header = TRUE)
+  RECRUITMENT_NUMBERS <- read.xlsx("SSMRT Participant Info.xlsx", sheet = "N")
   
   # if today isn't in the recruitment numbers file
   if (as.character(Sys.Date()) %notin% RECRUITMENT_NUMBERS$date) {

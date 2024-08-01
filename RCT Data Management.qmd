@@ -307,6 +307,9 @@ for (id in decisions$access_code[decisions$access_code != "" &
   rm(id)
 }
 
+# for writing to file later
+MANUAL_DECISIONS <- decisions
+
 rm(IPs,id,decisions,duplicate_access_code,duplicate_emails,duplicate_ips)
 
 ```
@@ -473,7 +476,7 @@ library(rlang)
 
 ### IP Info
 
-IPs <- read.xlsx("SSMRT IPs.xlsx", sheet = 1) # reading IP address file
+IPs <- read.xlsx("SSMRT Participant Info.xlsx", sheet = "IPs") # reading IP address file
 
 if (file.exists("SSMRT Location Data.xlsx")) { # if the location data file exists
   LOCATIONS <- read.xlsx("SSMRT Location Data.xlsx", sheet = 1) # read it
@@ -503,6 +506,9 @@ if (!is_empty(unfetched_IPs)) { # if there is at least 1 IP address
 df <- left_join(
   df, LOCATIONS, by = c("record_id" = "id")
 )
+
+# for writing to file later
+IPS <- IPs
 
 # removing unneeded environment objects
 rm(IPINFO_API_TOKEN, ipdat, unlistLists, unfetched_IPs, IPs)
@@ -1095,11 +1101,12 @@ write.csv(FINAL_DATA, paste(todays_folder_name, "SSMRT dataFinal.csv", sep = "")
 # writing location data to file
 write.xlsx(LOCATIONS, "SSMRT Location Data.xlsx")
 
-# writing N tracking to file
-write.csv(RECRUITMENT_NUMBERS, "N.csv", row.names = F)
-
-# writing followup tracking information to file
-write.csv(FOLLOWUPS, "Followup Tracking.csv", row.names = FALSE)
+# writing participant info to file
+write.xlsx(list("Followup tracking" = FOLLOWUPS,
+                "N" = RECRUITMENT_NUMBERS,
+                "Manual decisions" = MANUAL_DECISIONS,
+                "IPs" = IPS
+                ), "SSMRT Participant Info.xlsx", rowNames = FALSE)
 
 END_REACHED <- TRUE
 ```

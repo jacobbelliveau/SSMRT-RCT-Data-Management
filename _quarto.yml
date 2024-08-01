@@ -4,7 +4,6 @@ project:
     - RCT Data Management.qmd
   post-render: 
     - postExe.R
-    - reporting.R
 
 editor: visual
 

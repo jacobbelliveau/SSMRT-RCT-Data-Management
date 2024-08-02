@@ -753,6 +753,8 @@ df$exclude[
   | df$SL_flag == 1
   | df$ac_duplicate == 1
   | df$withdraw___1 == 1
+  # catching those who DQ or otherwise don't start the survey
+  | is.na(df$entrance_timestamp) | df$rct_dq_complete == 2
 ] <- 1
 
 # un-excludes participants who we have decided to manually keep
@@ -828,6 +830,56 @@ for (AC in followups$access_code) {
 FOLLOWUPS <- followups
 
 rm(AC, followups)
+
+```
+
+# Compensation logs
+
+The code below serves to keep track of who has been sent compensation, and who has been sent responses letting them know their submission was rejected. It also updates the file with new users who will need to be sent compensation, and their choice of compensation.
+
+```{r compensation}
+## TODO: this is fragile - duplicate ACs in df will break this
+compensation <- read.xlsx("SSMRT Participant Info.xlsx", sheet = "Compensation logs")
+
+# finding access codes missing from the compensation logs and adding them
+for (AC in df$access_code[!is.na(df$giftcard)]) {
+  if (AC %notin% compensation$access_code) {
+    compensation[nrow(compensation)+1, 1] <- AC
+  }
+}
+
+# filling out email addresses for access codes in the compensation file
+for (AC in compensation$access_code[is.na(compensation$email)]) {
+  compensation$email[compensation$access_code == AC] <- 
+    df$email_end[df$access_code == AC & !is.na(df$access_code)]  
+}
+
+# if participants have had their data rejected, make note of this in the compensation file
+for (AC in compensation$access_code) {
+  if (df$exclude[df$access_code == AC & !is.na(df$access_code)] == 1) {
+    compensation$approved[compensation$access_code == AC] <- "Rejected"
+  } else {
+    compensation$approved[compensation$access_code == AC] <- ""
+  }
+}
+
+# filling out preferred giftcards for access codes in the compensation file
+for (AC in compensation$access_code[is.na(compensation$card_type)]) {
+  compensation$card_type[compensation$access_code == AC] <- 
+    df$giftcard[df$access_code == AC & !is.na(df$access_code)]
+}
+
+# recoding card type to be labels and not numbers
+compensation$card_type <- dplyr::recode(compensation$card_type,
+                                        '1' = "Amazon.ca",
+                                        '2' = "PC",
+                                        '3' = "None")
+
+
+# saving for writing to file later
+COMPENSATION_LOGS <- compensation
+
+rm(compensation, AC)
 
 ```
 
@@ -1105,7 +1157,8 @@ write.xlsx(LOCATIONS, "SSMRT Location Data.xlsx")
 write.xlsx(list("Followup tracking" = FOLLOWUPS,
                 "N" = RECRUITMENT_NUMBERS,
                 "Manual decisions" = MANUAL_DECISIONS,
-                "IPs" = IPS
+                "IPs" = IPS,
+                "Compensation logs" = COMPENSATION_LOGS
                 ), "SSMRT Participant Info.xlsx", rowNames = FALSE)
 
 END_REACHED <- TRUE

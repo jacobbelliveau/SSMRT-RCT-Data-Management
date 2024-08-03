@@ -272,7 +272,7 @@ for (id in decisions$access_code[is.na(decisions$record_id)]) {
 }
 
 # handling decisions made solely with record IDs (applied to single rows)
-for (id in decisions$record_id[decisions$access_code == ""]) {
+for (id in decisions$record_id[decisions$access_code == "" | is.na(decisions$access_code)]) {
   
   if (!is.null(id)) { # if "id" is not NULL
     
@@ -301,7 +301,7 @@ for (id in decisions$access_code[decisions$access_code != "" &
     # exclude all participants with that access code
     df$manual_decided[df$access_code == id] <- 1 
     # un-exclude participants with that access code and the record id fetched
-    df$manual_decided[df$access_code == id & df$record_id == rid] <- 0
+    df$manual_decided[df$access_code == id & df$record_id == id] <- 0
     
   }
   rm(id)

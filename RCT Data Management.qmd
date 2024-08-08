@@ -800,7 +800,7 @@ df$exclude[df$manual_check == 2 & df$manual_decided == 0] <- 0
 
 # removes manual_check flag for participants who are already excluded
 df$manual_check[df$exclude == 1] <- 0
-df$manual_decided[df$manual_check > 1] <- 0
+df$manual_decided[df$manual_check == 0] <- 0
 
 ```
 

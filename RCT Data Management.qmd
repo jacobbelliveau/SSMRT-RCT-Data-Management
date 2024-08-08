@@ -195,6 +195,16 @@ The file containing decisions has 3 columns: [access_code]{.underline}, [record_
 
 -   decision: Single-character column containing decisions, represented by either the letter "k" (for "keep") or "e" (for "exclude")
 
+Manual decisions column can have 4 values indicating different failed checks:
+
+-   0: no problems
+
+-   2: duplicate emails in the "email" and/or "email_end" variables
+
+-   3: duplicate access codes
+
+-   4: duplicate IP address
+
 ```{r duplicate}
 
 library(openxlsx)
@@ -240,11 +250,11 @@ df$manual_check[df$email %in% duplicate_emails |
                   df$email_end %in% duplicate_emails] <- 2
 
 # flagging those with duplicate access codes
-df$manual_check[df$access_code %in% duplicate_access_code] <- 2
+df$manual_check[df$access_code %in% duplicate_access_code] <- 3
 
 # flagging those with duplicate IP addresses
 # this one is a little different - as the IP addresses aren't in the main dataframe, we instead check for the record IDs from the IPs dataframe and then flag those record IDs in the main dataframe
-df$manual_check[df$record_id %in% (IPs$record_id[IPs$ip %in% duplicate_ips])] <- 2
+df$manual_check[df$record_id %in% (IPs$record_id[IPs$ip %in% duplicate_ips])] <- 4
 
 ## Checking decisions
 
@@ -291,17 +301,21 @@ for (id in decisions$record_id[decisions$access_code == "" | is.na(decisions$acc
 
 # handling decisions made with both access codes and IDs
 for (id in decisions$access_code[decisions$access_code != "" & 
-                                 !is.na(decisions$record_id)]) {
+                                 !is.na(decisions$record_id) &
+                                 !is.na(decisions$access_code)]) {
   
   if (!is.null(id)) { # if "id" is not NULL
     
     # fetching record id corresponding to access code "id" 
-    rid <- decisions$record_id[decisions$access_code == id]
+    rid <- decisions$record_id[decisions$access_code == id 
+                               & !is.na(decisions$record_id)
+                               & !is.na(decisions$access_code)]
     
     # exclude all participants with that access code
-    df$manual_decided[df$access_code == id] <- 1 
+    df$manual_decided[df$access_code == id & !is.na(df$access_code)] <- 1 
     # un-exclude participants with that access code and the record id fetched
-    df$manual_decided[df$access_code == id & df$record_id == id] <- 0
+    df$manual_decided[df$access_code == id & df$record_id == rid
+                      & !is.na(df$access_code)] <- 0
     
   }
   rm(id)
@@ -357,24 +371,48 @@ rm(validpairs)
 
 ```
 
-## Duplicate access codes
+## Duplicate IP addresses
 
-Duplicate access codes in the follow-up surveys are handled in [Data Linkage](#sec-data-linkage). Duplicate access codes at the baseline are handled below. This is not something which should happen often and is indicative of participants copying the initial survey link once they reach the screening questions. These participants are considered to be gaming the system, and are flagged for removal.
+IP addresses are assigned per device; as such, it's highly unlikely that participants have the same IP address, unless they are 1) family/household members completing the study on the same device, 2) participants attempting to game the system and assuming multiple identities or 3) the same participant attempting the survey multiple times.
 
-```{r duplicate_acs}
+As we have no way of identifying participants, it's impossible for us to say which of the above is the case. As such, we flag all duplicate IP addresses for removal, with the exception of duplicate IP addresses where the screening question responses are identical between attempts. In the latter case, it's possible that participants had to exit the survey (e.g., ran out of time) and came back at a later time to complete the survey. In this case, all responses should be approximately the same, particularly in the demographic questionnaire. These participants will instead be manually inspected.
 
-# getting a vector of duplicate access codes
-duplicated_access_codes <- unique(df$access_code[duplicated(df$access_code)])
-# removing NA from the above vector
-duplicated_access_codes <- duplicated_access_codes[!is.na(duplicated_access_codes)]
+```{r dup_IP}
 
-df$ac_duplicate <- 0
-# flagging those who have a duplicate access code
-df$ac_duplicate[df$access_code %in% duplicated_access_codes] <- 1
+# reading in IP address file
+IPs <- read.xlsx("SSMRT Participant Info.xlsx", sheet = "IPs")
 
-# removing unneeded environment objects
-rm(duplicated_access_codes)
+# getting duplicate IPs
+duplicate_IPs <- unique(IPs$ip[duplicated(IPs$ip)])
 
+df$ip_duplicate <- 0
+
+for (IP in duplicate_IPs) {
+  # record_id values with the same IP address
+  rid <- IPs$record_id[IPs$ip == IP]
+  
+  # vector of ages with the same IP address
+  ages <- df$age_screen[df$record_id %in% rid]
+  # vector of cannabis_screen responses with the same IP address
+  cannabis <- df$cannabis_screen[df$record_id %in% rid]
+  # vector of province_screen responses with the same IP address
+  provinces <- df$province_screen[df$record_id %in% rid]
+  
+  # if all of the min and max of the above 3 vectors are equal
+        # note: i don't believe this code is technically necessary
+  if (max(ages) == min(ages) 
+      & max(cannabis) == min(cannabis) 
+      & max(provinces) == min(provinces)) {
+        # removes flag for exclusion (shouldn't be flagged anyway)
+        df$ip_duplicate[df$record_id %in% rid] <- 0
+  } else { # if any of the min and max of the above 3 vectors are not equal
+        # flags for duplicate IP and exclusion
+        df$ip_duplicate[df$record_id %in% rid] <- 1
+  }  
+  
+}
+
+rm(IPs, ages, cannabis, provinces, IP, rid, duplicate_IPs)
 ```
 
 # Data quality checks
@@ -751,8 +789,8 @@ df$exclude[
   | df$incon_province == 1
   | df$attncheck_fail == 1
   | df$SL_flag == 1
-  | df$ac_duplicate == 1
   | df$withdraw___1 == 1
+  | df$ip_duplicate == 1
   # catching those who DQ or otherwise don't start the survey
   | is.na(df$entrance_timestamp) | df$rct_dq_complete == 2
 ] <- 1
@@ -760,8 +798,9 @@ df$exclude[
 # un-excludes participants who we have decided to manually keep
 df$exclude[df$manual_check == 2 & df$manual_decided == 0] <- 0
 
-## TODO:
-# check that this actually works - currently, everyone is flagged
+# removes manual_check flag for participants who are already excluded
+df$manual_check[df$exclude == 1] <- 0
+df$manual_decided[df$manual_check > 1] <- 0
 
 ```
 
@@ -822,7 +861,7 @@ if ("exit_timestamp_F2" %in% names(df)) {
 
 # removing people who are manually excluded if they are present in the sheet
 for (AC in followups$access_code) {
-  if (df$exclude[df$access_code == AC & !is.na(df$access_code)] == 1) {
+  if (all(df$exclude[df$access_code == AC & !is.na(df$access_code)] == 1)) {
     followups <- followups[followups$access_code != AC,]
   }
 }
@@ -851,12 +890,14 @@ for (AC in df$access_code[!is.na(df$giftcard)]) {
 # filling out email addresses for access codes in the compensation file
 for (AC in compensation$access_code[is.na(compensation$email)]) {
   compensation$email[compensation$access_code == AC] <- 
-    df$email_end[df$access_code == AC & !is.na(df$access_code)]  
+    df$email_end[df$access_code == AC 
+                 & !is.na(df$access_code)
+                 & df$exclude == 0]  
 }
 
 # if participants have had their data rejected, make note of this in the compensation file
 for (AC in compensation$access_code) {
-  if (df$exclude[df$access_code == AC & !is.na(df$access_code)] == 1) {
+  if (all(df$exclude[df$access_code == AC & !is.na(df$access_code)] == 1)) {
     compensation$approved[compensation$access_code == AC] <- "Rejected"
   } else {
     compensation$approved[compensation$access_code == AC] <- ""
@@ -866,7 +907,9 @@ for (AC in compensation$access_code) {
 # filling out preferred giftcards for access codes in the compensation file
 for (AC in compensation$access_code[is.na(compensation$card_type)]) {
   compensation$card_type[compensation$access_code == AC] <- 
-    df$giftcard[df$access_code == AC & !is.na(df$access_code)]
+    df$giftcard[df$access_code == AC 
+                & !is.na(df$access_code)
+                & df$exclude == 0]
 }
 
 # recoding card type to be labels and not numbers

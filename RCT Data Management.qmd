@@ -890,9 +890,8 @@ for (AC in df$access_code[!is.na(df$giftcard)]) {
 # filling out email addresses for access codes in the compensation file
 for (AC in compensation$access_code[is.na(compensation$email)]) {
   compensation$email[compensation$access_code == AC] <- 
-    df$email_end[df$access_code == AC 
-                 & !is.na(df$access_code)
-                 & df$exclude == 0]  
+    unique(df$email_end[df$access_code == AC 
+                 & !is.na(df$access_code)])
 }
 
 # if participants have had their data rejected, make note of this in the compensation file
@@ -907,9 +906,8 @@ for (AC in compensation$access_code) {
 # filling out preferred giftcards for access codes in the compensation file
 for (AC in compensation$access_code[is.na(compensation$card_type)]) {
   compensation$card_type[compensation$access_code == AC] <- 
-    df$giftcard[df$access_code == AC 
-                & !is.na(df$access_code)
-                & df$exclude == 0]
+    unique(df$giftcard[df$access_code == AC 
+                & !is.na(df$access_code)])
 }
 
 # recoding card type to be labels and not numbers

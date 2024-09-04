@@ -793,6 +793,8 @@ df$exclude[
   | df$ip_duplicate == 1
   # catching those who DQ or otherwise don't start the survey
   | is.na(df$entrance_timestamp) | df$rct_dq_complete == 2
+  # catching those who didn't make it to the end
+  | is.na(df$exit_timestamp)
 ] <- 1
 
 # un-excludes participants who we have decided to manually keep
@@ -845,16 +847,24 @@ for (AC in followups$access_code[is.na(followups$f2_send_by)]) {
 # same code repeated for F2 below
 if ("exit_timestamp_F1" %in% names(df)) {
   for(AC in followups$access_code[is.na(followups$f1_done)]) {
-    if (!is.na(df$exit_timestamp_F1[df$access_code == AC])) {
-      followups <- followups[followups$access_code != AC,]
+    if (TRUE != all.equal(as.POSIXct(NULL, tz = "UTC"), 
+                  (df$exit_timestamp_F1[df$access_code == AC 
+                                    & !is.na(df$access_code)
+                                    & df$exclude == 0]))) {
+      followups$f1_done[followups$access_code == AC] <- 
+        as.character(date(df$exit_timestamp_F1[df$access_code == AC & !is.na(df$access_code) & df$exclude == 0]))
     }
   }
 }
 
 if ("exit_timestamp_F2" %in% names(df)) {
   for(AC in followups$access_code[is.na(followups$f2_done)]) {
-    if (!is.na(df$exit_timestamp_F2[df$access_code == AC])) {
-      followups$f2_done <- as.character(date(df$exit_timestamp_F2[df$access_code == AC]))
+    if (TRUE != all.equal(as.POSIXct(NULL, tz = "UTC"), 
+                  (df$exit_timestamp_F2[df$access_code == AC 
+                                    & !is.na(df$access_code)
+                                    & df$exclude == 0]))) {
+      followups$f2_done[followups$access_code == AC] <- 
+        as.character(date(df$exit_timestamp_F2[df$access_code == AC & !is.na(df$access_code)]))
     }
   }
 }
@@ -891,7 +901,7 @@ for (AC in df$access_code[!is.na(df$giftcard)]) {
 for (AC in compensation$access_code[is.na(compensation$email)]) {
   compensation$email[compensation$access_code == AC] <- 
     unique(df$email_end[df$access_code == AC 
-                 & !is.na(df$access_code)])
+                 & !is.na(df$access_code) & !is.na(df$email_end)])
 }
 
 # if participants have had their data rejected, make note of this in the compensation file
@@ -907,11 +917,60 @@ for (AC in compensation$access_code) {
 for (AC in compensation$access_code[is.na(compensation$card_type)]) {
   compensation$card_type[compensation$access_code == AC] <- 
     unique(df$giftcard[df$access_code == AC 
-                & !is.na(df$access_code)])
+                & !is.na(df$access_code) & !is.na(df$giftcard)])
 }
 
 # recoding card type to be labels and not numbers
 compensation$card_type <- dplyr::recode(compensation$card_type,
+                                        '1' = "Amazon.ca",
+                                        '2' = "PC",
+                                        '3' = "None")
+
+
+### The code below is the same as the above, but for F! and F2
+# filling out preferred giftcards for access codes in the compensation file
+for (AC in compensation$access_code[is.na(compensation$f1_card_type)]) {
+  if (any(!is.na(df$giftcard_F1[df$access_code == AC 
+                            & !is.na(df$access_code)]))) {
+    if (any(df$exclude[df$access_code == AC & !is.na(df$access_code)] == 0)) {
+          compensation$f1_card_type[compensation$access_code == AC] <- 
+      unique(df$giftcard_F1[df$access_code == AC 
+                  & !is.na(df$access_code) 
+                  & !is.na(df$giftcard_F1)])
+    }
+    if (all(df$exclude[df$access_code == AC & !is.na(df$access_code)] == 1)) {
+          compensation$f1_card_type[compensation$access_code == AC] <- 
+      "Rejected"
+    }  
+      
+  }
+}
+
+# recoding card type to be labels and not numbers
+compensation$f1_card_type <- dplyr::recode(compensation$f1_card_type,
+                                        '1' = "Amazon.ca",
+                                        '2' = "PC",
+                                        '3' = "None")
+# F2
+for (AC in compensation$access_code[is.na(compensation$f2_card_type)]) {
+  if (any(!is.na(df$giftcard_F2[df$access_code == AC 
+                            & !is.na(df$access_code)]))) {
+    if (df$exclude[df$access_code == AC & !is.na(df$access_code)] == 0) {
+          compensation$f2_card_type[compensation$access_code == AC] <- 
+      unique(df$giftcard_F2[df$access_code == AC 
+                  & !is.na(df$access_code) 
+                  & !is.na(df$giftcard_F2)])
+    }
+    if (df$exclude[df$access_code == AC & !is.na(df$access_code)] == 1) {
+          compensation$f2_card_type[compensation$access_code == AC] <- 
+      "Rejected"
+    }  
+      
+  }
+}
+
+# recoding card type to be labels and not numbers
+compensation$f2_card_type <- dplyr::recode(compensation$f2_card_type,
                                         '1' = "Amazon.ca",
                                         '2' = "PC",
                                         '3' = "None")

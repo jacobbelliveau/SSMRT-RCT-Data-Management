@@ -924,7 +924,8 @@ for (AC in compensation$access_code[is.na(compensation$card_type)]) {
 compensation$card_type <- dplyr::recode(compensation$card_type,
                                         '1' = "Amazon.ca",
                                         '2' = "PC",
-                                        '3' = "None")
+                                        '3' = "None",
+                                        '4' = "Walmart")
 
 
 ### The code below is the same as the above, but for F! and F2
@@ -950,18 +951,19 @@ for (AC in compensation$access_code[is.na(compensation$f1_card_type)]) {
 compensation$f1_card_type <- dplyr::recode(compensation$f1_card_type,
                                         '1' = "Amazon.ca",
                                         '2' = "PC",
-                                        '3' = "None")
+                                        '3' = "None",
+                                        '4' = "Walmart")
 # F2
 for (AC in compensation$access_code[is.na(compensation$f2_card_type)]) {
   if (any(!is.na(df$giftcard_F2[df$access_code == AC 
                             & !is.na(df$access_code)]))) {
-    if (df$exclude[df$access_code == AC & !is.na(df$access_code)] == 0) {
+    if (any(df$exclude[df$access_code == AC & !is.na(df$access_code)] == 0)) {
           compensation$f2_card_type[compensation$access_code == AC] <- 
       unique(df$giftcard_F2[df$access_code == AC 
                   & !is.na(df$access_code) 
                   & !is.na(df$giftcard_F2)])
     }
-    if (df$exclude[df$access_code == AC & !is.na(df$access_code)] == 1) {
+    if (all(df$exclude[df$access_code == AC & !is.na(df$access_code)] == 1)) {
           compensation$f2_card_type[compensation$access_code == AC] <- 
       "Rejected"
     }  
@@ -973,7 +975,8 @@ for (AC in compensation$access_code[is.na(compensation$f2_card_type)]) {
 compensation$f2_card_type <- dplyr::recode(compensation$f2_card_type,
                                         '1' = "Amazon.ca",
                                         '2' = "PC",
-                                        '3' = "None")
+                                        '3' = "None",
+                                        '4' = "Walmart")
 
 
 # saving for writing to file later

@@ -11,3 +11,6 @@ SSMRT Location Data.xlsx
 helpers.R
 redcap logic.txt
 SSMRT Participant Info.xlsx
+ssmrt.json
+googleauthr-auth-key.json
+GA data.csv

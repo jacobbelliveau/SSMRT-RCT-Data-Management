@@ -986,6 +986,108 @@ rm(compensation, AC)
 
 ```
 
+# Google Analytics data
+
+The code below fetches information regarding participants' usage of the SSMRT web platform. This information includes:
+
+-   first_visit
+
+-   page_view
+
+-   screen_view
+
+-   session_start
+
+-   user_engagement
+
+-   UserEngagementDuration
+
+This section is only run if the Google Analytics parameters are provided within the keys.R file.
+
+```{r ga}
+if (exists("GA_TOKEN")) {
+  library(googleAnalyticsR)
+  library(googleAuthR)
+  library(dplyr)
+  library(lubridate)
+  
+  
+  # authenticating
+  ga_auth(token = GA_TOKEN, email = "crism.cannabis@gmail.com")
+  
+  meta <- ga_meta("data", propertyId = GA_TOKEN)
+  
+  analytics_data <- subset(df, select = c("access_code", "group_F1", "entrance_timestamp", "exclude"))
+  analytics_data <- subset(analytics_data, exclude == 0)
+  analytics_data <- subset(analytics_data, group_F1 == "Intervention")
+  
+  
+  analytics_data$exclude <- NULL
+  analytics_data$group_F1 <- NULL
+  
+  
+  analytics_data <- rename(analytics_data, starttime = entrance_timestamp)
+  # formatting starttime to POSIX
+  analytics_data$starttime <- strptime(analytics_data$starttime, format = "%Y-%m-%d %H:%M:%S")
+  # removing the time, leaving only date
+  analytics_data$starttime <- round_date(analytics_data$starttime, "day")
+  
+  # initializing these columns of google analytics data
+  analytics_data$first_visit <- NA
+  analytics_data$page_view <- NA
+  analytics_data$screen_view <- NA
+  analytics_data$session_start <- NA
+  analytics_data$user_engagement <- NA
+  analytics_data$UserEngagementDuration <- NA
+  
+  for (AC in analytics_data$access_code) {
+    filter <- ga_data_filter("customUser:current_user"==AC)
+    D1 <- analytics_data$starttime[analytics_data$access_code == AC] - ddays(1)
+    D2 <- D1 + ddays(30)
+    
+    dat <- try(ga_data(
+      propertyId = 330608169,
+      metrics = c("eventCount", "userEngagementDuration"),
+      date_range = c(D1, D2), # for the x-day window
+      #date_range = c("2020-01-01", "2024-04-23"), # for "all time"
+      dimensions = c("customUser:current_user", "eventName"),
+      dim_filters = filter,
+      limit = -1
+    ))
+    
+    if (exists("dat") & all(class(dat) != "try-error")) {
+      
+      duration <- sum(as.numeric(dat$userEngagementDuration))
+      analytics_data$UserEngagementDuration[analytics_data$access_code == AC] <- duration
+      
+      if ("first_visit" %in% dat$eventName) {
+        FV <- dat$eventCount[dat$eventName == "first_visit"]
+        analytics_data$first_visit[analytics_data$access_code == AC] <- FV}
+      
+      if ("page_view" %in% dat$eventName) {
+        PV <- dat$eventCount[dat$eventName == "page_view"]
+        analytics_data$page_view[analytics_data$access_code == AC] <- PV}
+      
+      if ("screen_view" %in% dat$eventName) {
+        SV <- dat$eventCount[dat$eventName == "screen_view"]
+        analytics_data$screen_view[analytics_data$access_code == AC] <- SV}
+      
+      if ("session_start" %in% dat$eventName) {
+        SS <- dat$eventCount[dat$eventName == "session_start"]
+        analytics_data$session_start[analytics_data$access_code == AC] <- SS}
+      
+      if ("user_engagement" %in% dat$eventName) {
+        UE <- dat$eventCount[dat$eventName == "user_engagement"]
+        analytics_data$user_engagement[analytics_data$access_code == AC] <- UE}
+      
+      suppressWarnings(rm(FV, PV, SS, SV, UE, duration, GA_TOKEN))
+    }
+  }
+}
+
+
+```
+
 # Report generation
 
 The code below generates a report of relevant recruitment statistics and creates necessary files, as well as preparing the information to be sent to Google Sheets for tracking during recruitment.
@@ -997,7 +1099,6 @@ If you are running this code once recruitment is complete, the reports requiring
 The code below keeps a running tally of the number of eligible participants each time it is run. This sheet is shared on GitHub and also posted on Google Sheets in [Google reporting], where it is more up-to-date.
 
 ```{r n}
-
 # if the recruitment number file exists
 if (file.exists('SSMRT Participant Info.xlsx')) {
   # reading recruitment numbers file

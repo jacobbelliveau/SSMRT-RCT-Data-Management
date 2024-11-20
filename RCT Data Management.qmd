@@ -269,7 +269,7 @@ for (id in decisions$access_code[is.na(decisions$record_id)]) {
   
   if (!is.null(id)) { # if "id" is not NULL
     
-    if (decisions$decision[decisions$access_code == id] == "e") { # if the decision is to exclude
+    if (decisions$decision[decisions$access_code == id & !is.na(decisions$access_code)] == "e") { # if the decision is to exclude
       
       df$manual_decided[df$access_code == id] <- 1 #exclude
     
@@ -362,6 +362,17 @@ df$blank_code <- 0 # creates a variable for flagging those with empty codes
 df$blank_code[nchar(df$codes) != 13 | 
                 is.na(df$codes)     | 
                 df$codes == "undefinedundefined"] <- 1 
+
+### Duplicate codes with different email addresses
+duplicate_access_codes <- unique(df$codes[duplicated(df$codes) 
+                                          & !is.na(df$codes)
+                                          & df$codes != "undefinedundefined"])
+df$duplicated_codes <- 0
+
+for (item in duplicate_access_codes) {
+  email_quant <- length(unique(df$email[df$codes == item & !is.na(df$codes)]))
+  if (email_quant != 1) {df$duplicated_codes[df$codes == item] <- 1}
+}
 
 ### Removing the $codes variable as it's no longer needed
 df$codes <- NULL
@@ -563,7 +574,6 @@ What is "too quickly"? We have defined it as being more than one third the media
 ### Packages
 library(lubridate)
 
-
 ### Detecting speeding
 # creating a column with the time difference between the start time and end time
 df$completetime <- difftime(df$exit_timestamp, df$entrance_timestamp)
@@ -759,7 +769,7 @@ last_SL <- which(colnames(df) == "SL_k6")
 df$SL_total <- rowSums(df[first_SL:last_SL])
 
 # Creates a flag which is 0 if they pass, and 1 if participants were flagged
-# for straightlining more than 4 times.
+# for straightlining more than 2 times.
 df$SL_flag <- 0
 df$SL_flag[df$SL_total > 2] <- 1
 
@@ -780,6 +790,7 @@ df$exclude[
   df$manual_decided == 1
   | df$invalid_code == 1
   | df$blank_code == 1
+  | df$duplicated_codes == 1
   | df$speeder == 1
   | df$incon_cudit1 == 1
   | df$incon_cuditcheck == 1
@@ -1015,16 +1026,16 @@ if (exists("GA_TOKEN")) {
   # authenticating
   ga_auth(token = GA_TOKEN, email = "crism.cannabis@gmail.com")
   
-  meta <- ga_meta("data", propertyId = GA_TOKEN)
+  #meta <- ga_meta("data", propertyId = GA_TOKEN)
   
-  analytics_data <- subset(df, select = c("access_code", "group_F1", "entrance_timestamp", "exclude"))
+  analytics_data <- subset(df, select = c("access_code", "group_F1", "group_F2", "entrance_timestamp", "exclude"))
   analytics_data <- subset(analytics_data, exclude == 0)
-  analytics_data <- subset(analytics_data, group_F1 == "Intervention")
+  analytics_data <- subset(analytics_data, group_F1 == "Intervention" | group_F2 == "Intervention")
   
   
   analytics_data$exclude <- NULL
   analytics_data$group_F1 <- NULL
-  
+  analytics_data$group_F2 <- NULL
   
   analytics_data <- rename(analytics_data, starttime = entrance_timestamp)
   # formatting starttime to POSIX
@@ -1083,6 +1094,7 @@ if (exists("GA_TOKEN")) {
       suppressWarnings(rm(FV, PV, SS, SV, UE, duration, GA_TOKEN))
     }
   }
+  write.csv(analytics_data, "GA Data.csv", row.names = FALSE)
 }
 
 
